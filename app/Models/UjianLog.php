@@ -26,6 +26,7 @@ class UjianLog extends Model
         'keluar_halaman' => 'Berpindah / meninggalkan halaman ujian',
         'reset' => 'Direset pengawas',
         'token_salah' => 'Token salah',
+        'tolak_non_exambro' => 'Ditolak: tidak memakai peramban ujian (ExamBro)',
 
         // Pelanggaran yang dilaporkan lapisan pengawasan lembar ujian.
         'tab_baru' => 'Mencoba membuka tab / jendela baru',

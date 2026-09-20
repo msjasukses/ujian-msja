@@ -70,6 +70,25 @@
                     </ul>
                 </div>
 
+                {{-- Kalau peramban yang dipakai salah, dikatakan di sini — bukan
+                     setelah tombol ditekan dan siswa telanjur cemas. --}}
+                @if ($ujian->wajib_exambro && ! $bolehPeramban)
+                    <div class="alert alert-danger d-flex gap-2 align-items-start">
+                        <i class="bi bi-shield-exclamation fs-5"></i>
+                        <div>
+                            <div class="fw-semibold">Ujian ini wajib dikerjakan lewat aplikasi ExamBro.</div>
+                            Tutup peramban ini, buka <strong>ExamBro</strong>, lalu masuk kembali memakai
+                            NISN dan kata sandi Anda. Bila sudah memakai ExamBro tetapi pesan ini tetap
+                            muncul, laporkan kepada pengawas.
+                        </div>
+                    </div>
+                @elseif ($ujian->wajib_exambro)
+                    <div class="alert alert-success py-2 small d-flex gap-2 align-items-center">
+                        <i class="bi bi-shield-check"></i>
+                        <div>Peramban ujian terdeteksi. Anda boleh memulai ujian ini.</div>
+                    </div>
+                @endif
+
                 <form method="POST" action="{{ route('siswa.ujian.mulai', $peserta) }}">
                     @csrf
 
@@ -89,7 +108,7 @@
                         </div>
                     @endif
 
-                    <button class="btn btn-ujian btn-lg w-100 py-3">
+                    <button class="btn btn-ujian btn-lg w-100 py-3" @disabled($ujian->wajib_exambro && ! $bolehPeramban)>
                         <i class="bi bi-play-fill me-1"></i>{{ $lanjut ? 'Lanjutkan Ujian' : 'Mulai Ujian Sekarang' }}
                     </button>
                 </form>

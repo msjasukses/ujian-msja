@@ -80,6 +80,12 @@
                                 @if ($u->is_remidial)
                                     <span class="badge text-bg-warning-subtle text-warning border border-warning-subtle">Remidial</span>
                                 @endif
+                                @if ($u->wajib_exambro)
+                                    <span class="badge text-bg-info-subtle text-info border border-info-subtle"
+                                          title="Peserta hanya bisa mengerjakan lewat aplikasi ExamBro">
+                                        <i class="bi bi-shield-lock me-1"></i>ExamBro
+                                    </span>
+                                @endif
                             </div>
                             <div class="small text-muted">
                                 {{ $u->kode_ujian }} &middot; {{ $u->mataPelajaran->nama_mapel ?? '-' }}

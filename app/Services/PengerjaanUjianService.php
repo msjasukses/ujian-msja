@@ -9,6 +9,7 @@ use App\Models\UjianJawaban;
 use App\Models\UjianLog;
 use App\Models\UjianPeserta;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Mesin pengerjaan ujian dari sisi peserta: memulai sesi, menyimpan jawaban
@@ -54,6 +55,26 @@ class PengerjaanUjianService
         return $peserta->refresh();
     }
 
+    /**
+     * Bolehkah ujian ini dikerjakan dari peramban permintaan sekarang?
+     *
+     * Pemeriksaannya memakai penanda yang sama dengan menu Log Login, supaya
+     * lencana "lewat ExamBro" di sana dan keputusan boleh/tidak di sini tidak
+     * pernah berbeda. Batasnya pun sama: yang dikenali adalah aplikasi
+     * ber-WebView, bukan ExamBro secara khusus. Build peramban ujian yang
+     * mengirim user agent Chrome apa adanya harus disetel menambahkan penanda
+     * lewat UJIAN_PENANDA_EXAMBRO — tanpa itu, menyalakan kewajiban ini akan
+     * menolak seluruh peserta.
+     */
+    public static function bolehDenganPeramban(Ujian $ujian, ?string $userAgent = null): bool
+    {
+        if (! $ujian->wajib_exambro) {
+            return true;
+        }
+
+        return LoginAttempt::webview($userAgent ?? (string) request()->userAgent());
+    }
+
     /** @throws \RuntimeException */
     protected function pastikanBolehMengerjakan(UjianPeserta $peserta, Ujian $ujian, ?string $token): void
     {
@@ -71,6 +92,19 @@ class PengerjaanUjianService
         }
         if ($ujian->sudah_lewat) {
             throw new \RuntimeException('Waktu ujian sudah berakhir.');
+        }
+
+        if (! static::bolehDenganPeramban($ujian)) {
+            // User agent dicatat apa adanya: bila seluruh kelas tertolak,
+            // pengawas butuh melihat penanda apa yang sebenarnya dikirim
+            // peramban ujian sekolah (lihat config/ujian.php).
+            UjianLog::catat($ujian->id, $peserta->id, 'tolak_non_exambro',
+                Str::limit((string) request()->userAgent(), 180));
+
+            throw new \RuntimeException(
+                'Ujian ini hanya boleh dikerjakan lewat aplikasi ExamBro. '
+                .'Tutup peramban ini, buka ExamBro, lalu masuk kembali.'
+            );
         }
 
         if ($ujian->token && $peserta->status === UjianPeserta::TERDAFTAR) {

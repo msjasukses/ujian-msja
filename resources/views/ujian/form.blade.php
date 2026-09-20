@@ -213,6 +213,31 @@
                         Lembar yang terkunci hanya dapat dibuka pengawas lewat menu Monitoring Ujian.
                         Jawaban yang sudah tersimpan tidak hilang.
                     </div>
+
+                    <hr class="my-3">
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="wajib_exambro" value="1" id="wajib_exambro"
+                               @checked(old('wajib_exambro', $item->wajib_exambro ?? false))>
+                        <label class="form-check-label fw-semibold" for="wajib_exambro">Wajib lewat ExamBro</label>
+                    </div>
+                    <div class="form-text">
+                        Peserta yang membuka ujian dari peramban biasa tidak diizinkan menekan
+                        "Mulai", dan lembar yang sudah berjalan pun berhenti bila dilanjutkan
+                        di luar ExamBro. Penolakannya tercatat di Monitoring Ujian.
+                    </div>
+
+                    @if (empty(config('ujian.penanda_exambro')))
+                        <div class="alert alert-warning py-2 small mt-2 mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <strong>Uji dulu sebelum dipakai serentak.</strong>
+                            Peramban ujian dikenali dari user agent-nya. Sebagian build ExamBro
+                            mengirim user agent yang sama persis dengan Chrome biasa — pada build
+                            seperti itu seluruh peserta akan tertolak. Bila itu terjadi, setel
+                            <code>UJIAN_PENANDA_EXAMBRO</code> pada berkas <code>.env</code>
+                            sesuai penanda yang terlihat di menu Log Login.
+                        </div>
+                    @endif
                 </div>
             </div>
 

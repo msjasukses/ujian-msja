@@ -309,6 +309,7 @@ class UjianController extends Controller
             'acak_soal' => $r->boolean('acak_soal'),
             'acak_opsi' => $r->boolean('acak_opsi'),
             'proteksi_ketat' => $r->boolean('proteksi_ketat'),
+            'wajib_exambro' => $r->boolean('wajib_exambro'),
         ];
     }
 }

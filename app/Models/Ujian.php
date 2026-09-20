@@ -46,6 +46,7 @@ class Ujian extends Model
         'acak_opsi',
         'proteksi_ketat',
         'maks_pelanggaran',
+        'wajib_exambro',
         'status',
         'ujian_induk_id',
         'is_remidial',
@@ -61,6 +62,7 @@ class Ujian extends Model
         'acak_opsi' => 'boolean',
         'proteksi_ketat' => 'boolean',
         'maks_pelanggaran' => 'integer',
+        'wajib_exambro' => 'boolean',
         'is_remidial' => 'boolean',
     ];
 

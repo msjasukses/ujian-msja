@@ -50,6 +50,7 @@ class UjianSiswaController extends Controller
         return view('siswa.konfirmasi', [
             'peserta' => $peserta->load('ujian.paketSoal', 'ujian.mataPelajaran'),
             'jumlahButir' => $peserta->ujian->paketSoal->detail()->count(),
+            'bolehPeramban' => PengerjaanUjianService::bolehDenganPeramban($peserta->ujian),
         ]);
     }
 
@@ -77,6 +78,14 @@ class UjianSiswaController extends Controller
 
         if ($peserta->status !== UjianPeserta::MULAI) {
             return redirect()->route('siswa.ujian.konfirmasi', $peserta);
+        }
+
+        // Dijaga juga di sini, bukan hanya saat menekan "Mulai": lembar yang
+        // sudah dibuka lewat ExamBro tidak boleh dilanjutkan dari peramban
+        // biasa dengan menyalin alamatnya.
+        if (! PengerjaanUjianService::bolehDenganPeramban($peserta->ujian)) {
+            return redirect()->route('siswa.ujian.konfirmasi', $peserta)
+                ->with('error', 'Ujian ini hanya boleh dikerjakan lewat aplikasi ExamBro.');
         }
 
         // Waktu habis sementara halaman ditutup — kumpulkan otomatis.
