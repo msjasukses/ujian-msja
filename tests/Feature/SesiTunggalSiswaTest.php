@@ -341,9 +341,15 @@ class SesiTunggalSiswaTest extends TestCase
             // Lencana pada baris pesertanya.
             ->assertSee('Login ganda 1x')
             // Rincian perangkat untuk tooltip.
-            ->assertSee('Masuk dari 192.168.10.22; sesi di 192.168.10.21 diakhiri.')
-            // Jejak aktivitasnya disorot, tidak tenggelam di antara jejak biasa.
-            ->assertSee('jejak-ganda', false);
+            ->assertSee('Masuk dari 192.168.10.22; sesi di 192.168.10.21 diakhiri.');
+
+        // Jejaknya sendiri ada di halaman Jejak Aktivitas, dan tetap disorot
+        // supaya tidak tenggelam di antara jejak biasa.
+        $this->actingAs($this->pengawas())
+            ->get(route('monitoring.jejak', $peserta->ujian_id))
+            ->assertOk()
+            ->assertSee('jejak-ganda', false)
+            ->assertSee('Masuk dari 192.168.10.22; sesi di 192.168.10.21 diakhiri.');
     }
 
     /** Tabel monitoring menyegarkan diri tiap 15 detik; datanya harus ikut membawa login ganda. */

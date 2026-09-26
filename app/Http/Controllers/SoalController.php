@@ -6,12 +6,14 @@ use App\Models\Soal;
 use App\Models\Topik;
 use App\Services\GambarSoalService;
 use App\Services\ImportSoalExcelService;
+use App\Services\MediaSoalService;
 use App\Support\ExcelExport;
 use App\Support\Pengguna;
 use App\Support\Referensi;
 use App\Support\TeksSoal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -39,7 +41,7 @@ class SoalController extends Controller
             'items' => $items,
             'stat' => $stat,
             'total' => $this->kueriDasar()->count(),
-            'daftarTopik' => Topik::aktif()->orderBy('nama_topik')->get(),
+            'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
         ]);
     }
 
@@ -54,7 +56,7 @@ class SoalController extends Controller
 
         return view('soal.form', [
             'item' => $item,
-            'daftarTopik' => Topik::aktif()->orderBy('nama_topik')->get(),
+            'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
         ]);
     }
 
@@ -76,7 +78,7 @@ class SoalController extends Controller
     {
         return view('soal.form', [
             'item' => $soal,
-            'daftarTopik' => Topik::aktif()->orderBy('nama_topik')->get(),
+            'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
         ]);
     }
 
@@ -204,7 +206,12 @@ class SoalController extends Controller
         $data = $r->validate([
             'jenis' => 'required|in:'.implode(',', array_keys(Soal::JENIS)),
             'kode_soal' => 'nullable|string|max:40',
-            'topik_id' => 'nullable|integer|exists:topik,id',
+            // Topik pun dibatasi seperti mapel & tingkat: guru hanya boleh
+            // menempelkan butir pada topik yang tampil di daftarnya, sedangkan
+            // topik lama butir ini tetap diterima agar tidak lepas saat diubah.
+            'topik_id' => ['nullable', 'integer', Rule::in(
+                Topik::milikPengguna()->pluck('id')->push($r->route('soal')?->topik_id)->filter()->all()
+            )],
             'mata_pelajaran_id' => Referensi::aturanMapel($r->route('soal')?->mata_pelajaran_id),
             'tingkat_kelas_id' => Referensi::aturanTingkat($r->route('soal')?->tingkat_kelas_id),
             'tahun_ajaran' => Referensi::aturanTahunAjaran($r->route('soal')?->tahun_ajaran),
@@ -213,15 +220,47 @@ class SoalController extends Controller
             'level_kognitif' => 'nullable|string|max:5',
             'tingkat_kesukaran' => 'nullable|in:mudah,sedang,sukar',
             'pembahasan' => 'nullable|string',
+            'media' => 'nullable|file',
         ]);
+
+        unset($data['media']);
 
         [$opsi, $kunci] = $this->opsiDanKunci($r, $data['jenis']);
 
-        return $data + [
+        return $data + $this->media($r) + [
             'opsi' => $opsi,
             'kunci' => $kunci,
             'is_aktif' => $r->boolean('is_aktif', true),
         ];
+    }
+
+    /**
+     * Lampiran audio/video butir ini.
+     *
+     * Mengembalikan array kosong bila tidak ada perubahan, sehingga lampiran
+     * lama tetap menempel saat guru hanya membetulkan teks soal.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    protected function media(Request $r): array
+    {
+        if ($r->boolean('hapus_media') && ! $r->hasFile('media')) {
+            return ['media_path' => null, 'media_tipe' => null];
+        }
+
+        if (! $r->hasFile('media')) {
+            return [];
+        }
+
+        try {
+            $media = app(MediaSoalService::class)->simpan($r->file('media'));
+        } catch (RuntimeException $e) {
+            throw ValidationException::withMessages(['media' => $e->getMessage()]);
+        }
+
+        return ['media_path' => $media['path'], 'media_tipe' => $media['tipe']];
     }
 
     /**

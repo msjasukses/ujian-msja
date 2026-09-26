@@ -14,6 +14,7 @@ use App\Services\AnalisisButirService;
 use App\Services\StatistikUjianService;
 use Database\Seeders\ContohSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -52,6 +53,35 @@ class ContohSeederTest extends TestCase
         Soal::all()->each(function (Soal $s) {
             $this->assertNotEmpty($s->kunci, "Soal #{$s->id} tidak punya kunci jawaban.");
         });
+    }
+
+    /** Contoh soal menyimak: ada butir berlampiran audio beserta berkasnya. */
+    public function test_menyediakan_contoh_soal_berlampiran_audio(): void
+    {
+        $soal = Soal::whereNotNull('media_path')->get();
+
+        $this->assertNotEmpty($soal, 'Seeder tidak menghasilkan satu pun butir berlampiran media.');
+
+        $soal->each(function (Soal $s) {
+            $this->assertSame('audio', $s->media_tipe);
+            $this->assertTrue(
+                Storage::disk('public')->exists($s->media_path),
+                "Berkas {$s->media_path} tidak ada, pemutar di lembar ujian akan kosong."
+            );
+            // WAV yang sah diawali penanda RIFF, dan bukan berkas kosong.
+            $this->assertStringStartsWith('RIFF', Storage::disk('public')->get($s->media_path));
+            $this->assertGreaterThan(1000, Storage::disk('public')->size($s->media_path));
+        });
+    }
+
+    /** Satu jadwal contoh memperagakan kewajiban memakai ExamBro. */
+    public function test_menyediakan_contoh_ujian_wajib_exambro(): void
+    {
+        $this->assertTrue(Ujian::where('wajib_exambro', true)->exists());
+
+        // Bukan yang sedang berlangsung — ujian contoh itu harus tetap bisa
+        // dicoba dari peramban biasa.
+        $this->assertFalse((bool) Ujian::where('status', Ujian::AKTIF)->value('wajib_exambro'));
     }
 
     public function test_menghasilkan_tiga_jadwal_ujian_dengan_status_berbeda(): void

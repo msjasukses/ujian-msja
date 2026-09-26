@@ -26,6 +26,8 @@ class AnalisisButirController extends Controller
             ->withCount(['peserta as selesai_count' => fn ($q) => $q->where('status', UjianPeserta::SELESAI)])
             ->when($r->q, fn ($q, $v) => $q->where('nama_ujian', 'like', "%{$v}%"))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
+            ->when($r->rombongan_belajar_id, fn ($q, $v) => $q->whereHas('kelas',
+                fn ($k) => $k->where('rombongan_belajar_id', $v)))
             ->orderByDesc('waktu_mulai')
             ->paginate(20)
             ->withQueryString();
@@ -33,16 +35,16 @@ class AnalisisButirController extends Controller
         return view('laporan.analisis.index', compact('items'));
     }
 
-    public function show(Ujian $ujian)
+    public function show(Request $r, Ujian $ujian)
     {
         return view('laporan.analisis.show', [
             'ujian' => $ujian->load('mataPelajaran', 'paketSoal'),
-        ] + $this->analisis->untukUjian($ujian));
+        ] + $this->analisis->untukUjian($ujian, $r->get('rombongan_belajar_id')));
     }
 
-    public function export(Ujian $ujian)
+    public function export(Request $r, Ujian $ujian)
     {
-        $data = $this->analisis->untukUjian($ujian);
+        $data = $this->analisis->untukUjian($ujian, $r->get('rombongan_belajar_id'));
         $sekolah = Sekolah::profil();
 
         $rows = $data['butir']->map(fn ($b) => [

@@ -6,13 +6,17 @@
 @section('content')
 
 <div class="d-flex flex-wrap gap-2 justify-content-end mb-3">
-    <a href="{{ route('laporan.analisis.export', $ujian) }}" class="btn btn-sm btn-outline-success">
+    <a href="{{ route('laporan.analisis.export', [$ujian] + request()->only('rombongan_belajar_id')) }}"
+       class="btn btn-sm btn-outline-success">
         <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
     </a>
-    <a href="{{ route('laporan.statistik.show', $ujian) }}" class="btn btn-sm btn-outline-primary">
+    <a href="{{ route('laporan.statistik.show', [$ujian] + request()->only('rombongan_belajar_id')) }}"
+       class="btn btn-sm btn-outline-primary">
         <i class="bi bi-bar-chart-line me-1"></i>Statistik
     </a>
 </div>
+
+@include('laporan.partials.filter-kelas', compact('ujian'))
 
 @if ($jumlah_peserta === 0)
     <div class="alert alert-warning">

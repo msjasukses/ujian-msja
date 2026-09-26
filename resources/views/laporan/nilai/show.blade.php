@@ -34,7 +34,8 @@
             <a href="{{ route('laporan.nilai.export', array_merge([$ujian], request()->query())) }}" class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
             </a>
-            <a href="{{ route('laporan.statistik.show', $ujian) }}" class="btn btn-sm btn-outline-primary">
+            <a href="{{ route('laporan.statistik.show', [$ujian] + request()->only('rombongan_belajar_id')) }}"
+               class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-bar-chart-line me-1"></i>Statistik
             </a>
         </div>
@@ -44,12 +45,8 @@
         <form class="row g-2 align-items-end">
             <div class="col-8 col-md-3">
                 <label class="form-label">Kelas</label>
-                <select name="rombongan_belajar_id" class="form-select form-select-sm" data-kirim-otomatis>
-                    <option value="">Semua kelas</option>
-                    @foreach (Referensi::rombel() as $k)
-                        <option value="{{ $k->id }}" @selected(request('rombongan_belajar_id') == $k->id)>{{ $k->nama_rombel }}</option>
-                    @endforeach
-                </select>
+                {{-- Kelas yang ikut ujian ini saja, bukan seluruh rombel sekolah. --}}
+                <x-pilih-kelas :ujian="$ujian" />
             </div>
         </form>
     </div>

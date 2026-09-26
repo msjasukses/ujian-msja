@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\MilikGuru;
 use App\Support\TeksSoal;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -56,6 +57,8 @@ class Soal extends Model
         'tahun_ajaran',
         'jenis',
         'pertanyaan',
+        'media_path',
+        'media_tipe',
         'gambar',
         'opsi',
         'kunci',
@@ -73,6 +76,17 @@ class Soal extends Model
         'bobot' => 'decimal:2',
         'is_aktif' => 'boolean',
     ];
+
+    /** Alamat berkas audio/video yang menyertai butir ini, bila ada. */
+    public function getMediaUrlAttribute(): ?string
+    {
+        return $this->media_path ? Storage::disk('public')->url($this->media_path) : null;
+    }
+
+    public function getPunyaMediaAttribute(): bool
+    {
+        return filled($this->media_path) && filled($this->media_tipe);
+    }
 
     public function topik()
     {

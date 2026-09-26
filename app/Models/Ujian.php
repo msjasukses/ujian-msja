@@ -112,6 +112,24 @@ class Ujian extends Model
         return $this->kelas()->pluck('rombongan_belajar_id')->map('intval')->all();
     }
 
+    /**
+     * Rombel peserta ujian ini, untuk penyaring kelas di menu laporan.
+     *
+     * Yang dipakai rombel yang benar-benar terdaftar pada ujian ini, bukan
+     * seluruh rombel sekolah: daftar kelas di laporan tidak boleh memuat
+     * kelas yang tak pernah ikut ujian tersebut.
+     *
+     * @return \Illuminate\Support\Collection<int, RombonganBelajar>
+     */
+    public function rombelDipakai(): \Illuminate\Support\Collection
+    {
+        $ids = $this->rombelIds();
+
+        return $ids === []
+            ? collect()
+            : RombonganBelajar::whereIn('id', $ids)->orderBy('tingkat')->orderBy('nama_rombel')->get();
+    }
+
     /** Ujian sedang berada dalam jendela waktu pelaksanaan. */
     public function getSedangBerlangsungAttribute(): bool
     {

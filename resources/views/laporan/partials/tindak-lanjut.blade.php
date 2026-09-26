@@ -6,6 +6,8 @@
 --}}
 @php $labelJenis = ucfirst($jenis); @endphp
 
+@include('laporan.partials.filter-kelas', compact('ujian'))
+
 <div class="row g-3 mb-3">
     <div class="col-6 col-lg-3">
         <x-stat :label="'Siswa '.$labelJenis" :value="$daftar->count()" icon="bi-people"
@@ -41,7 +43,7 @@
     <div class="card">
         <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <span>Rencanakan {{ $labelJenis }}</span>
-            <a href="{{ route($routeDasar.'.export', $ujian) }}" class="btn btn-sm btn-outline-success">
+            <a href="{{ route($routeDasar.'.export', [$ujian] + request()->only('rombongan_belajar_id')) }}" class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
             </a>
         </div>

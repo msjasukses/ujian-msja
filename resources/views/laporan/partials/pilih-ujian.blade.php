@@ -14,11 +14,11 @@
 
     <div class="card-body border-bottom bg-light-subtle py-2">
         <form class="row g-2 align-items-end">
-            <div class="col-6 col-md-4">
+            <div class="col-6 col-md-3">
                 <label class="form-label">Cari ujian</label>
                 <input name="q" value="{{ request('q') }}" class="form-control form-control-sm">
             </div>
-            <div class="col-6 col-md-4">
+            <div class="col-6 col-md-3">
                 <label class="form-label">Mata pelajaran</label>
                 <select name="mata_pelajaran_id" class="form-select form-select-sm">
                     <option value="">Semua</option>
@@ -27,7 +27,14 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-4 d-flex gap-2">
+            <div class="col-6 col-md-3">
+                {{-- Menyaring ujian yang kelas itu ikut serta, lalu terbawa ke
+                     halaman detailnya sehingga daftar pesertanya langsung
+                     tersaring pada kelas yang sama. --}}
+                <label class="form-label">Kelas</label>
+                <x-pilih-kelas :otomatis="false" />
+            </div>
+            <div class="col-6 col-md-3 d-flex gap-2">
                 <button class="btn btn-sm btn-primary flex-grow-1"><i class="bi bi-funnel me-1"></i>Filter</button>
                 <a href="{{ url()->current() }}" class="btn btn-sm btn-outline-secondary">Reset</a>
             </div>
@@ -67,7 +74,8 @@
                             <td class="text-center">{!! $kolomEkstra($u) !!}</td>
                         @endisset
                         <td class="text-end">
-                            <a href="{{ route($routeShow, $u) }}" class="btn btn-sm btn-outline-primary">
+                            <a href="{{ route($routeShow, [$u, 'rombongan_belajar_id' => request('rombongan_belajar_id')]) }}"
+                               class="btn btn-sm btn-outline-primary">
                                 Buka <i class="bi bi-chevron-right"></i>
                             </a>
                         </td>

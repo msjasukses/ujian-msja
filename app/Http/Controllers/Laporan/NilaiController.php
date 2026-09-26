@@ -38,6 +38,8 @@ class NilaiController extends Controller
             ])
             ->when($r->q, fn ($q, $v) => $q->where('nama_ujian', 'like', "%{$v}%"))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
+            ->when($r->rombongan_belajar_id, fn ($q, $v) => $q->whereHas('kelas',
+                fn ($k) => $k->where('rombongan_belajar_id', $v)))
             ->orderByDesc('waktu_mulai')
             ->paginate(20)
             ->withQueryString();

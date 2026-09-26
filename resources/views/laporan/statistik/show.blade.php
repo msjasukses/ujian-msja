@@ -5,16 +5,22 @@
 @section('content')
 
 <div class="d-flex flex-wrap gap-2 justify-content-end mb-3">
-    <a href="{{ route('laporan.statistik.export', $ujian) }}" class="btn btn-sm btn-outline-success">
+    {{-- Kelas yang sedang disaring ikut terbawa ke export dan ke laporan lain. --}}
+    <a href="{{ route('laporan.statistik.export', [$ujian] + request()->only('rombongan_belajar_id')) }}"
+       class="btn btn-sm btn-outline-success">
         <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
     </a>
-    <a href="{{ route('laporan.nilai.show', $ujian) }}" class="btn btn-sm btn-outline-primary">
+    <a href="{{ route('laporan.nilai.show', [$ujian] + request()->only('rombongan_belajar_id')) }}"
+       class="btn btn-sm btn-outline-primary">
         <i class="bi bi-card-checklist me-1"></i>Daftar Nilai
     </a>
-    <a href="{{ route('laporan.analisis.show', $ujian) }}" class="btn btn-sm btn-outline-primary">
+    <a href="{{ route('laporan.analisis.show', [$ujian] + request()->only('rombongan_belajar_id')) }}"
+       class="btn btn-sm btn-outline-primary">
         <i class="bi bi-graph-up me-1"></i>Analisis Butir
     </a>
 </div>
+
+@include('laporan.partials.filter-kelas', compact('ujian'))
 
 <div class="row g-3 mb-3">
     <div class="col-6 col-lg-3"><x-stat label="Peserta selesai" :value="$ringkasan['selesai'].' / '.$ringkasan['terdaftar']" icon="bi-people" /></div>

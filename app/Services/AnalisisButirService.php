@@ -38,10 +38,13 @@ class AnalisisButirService
      *     jumlah_peserta: int
      * }
      */
-    public function untukUjian(Ujian $ujian): array
+    public function untukUjian(Ujian $ujian, int|string|null $rombelId = null): array
     {
+        // Analisis butir per kelas: tingkat kesukaran dan daya pembeda
+        // dihitung ulang dari lembar jawaban kelas itu saja.
         $peserta = $ujian->peserta()
             ->where('status', UjianPeserta::SELESAI)
+            ->when($rombelId, fn ($q, $v) => $q->where('rombongan_belajar_id', $v))
             ->orderByDesc('nilai')
             ->get();
 

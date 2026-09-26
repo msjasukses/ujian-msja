@@ -35,4 +35,25 @@ return [
         explode(',', (string) env('UJIAN_PENANDA_EXAMBRO', ''))
     ))),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Batas ukuran lampiran audio/video pada butir soal (MB)
+    |--------------------------------------------------------------------------
+    |
+    | Berkasnya dilayani server ujian sendiri dan diunduh setiap peserta saat
+    | butirnya tampil. Pada jaringan sekolah, video 50 MB yang dibuka 30 siswa
+    | sekaligus berarti 1,5 GB melintas — perkecil dulu berkasnya sebelum
+    | menaikkan batas ini.
+    |
+    | Batas di sini juga harus muat pada batas unggah peladen web:
+    | client_max_body_size pada nginx, dan upload_max_filesize/post_max_size
+    | pada PHP.
+    |
+    */
+
+    'maks_media_mb' => [
+        'audio' => (int) env('UJIAN_MAKS_AUDIO_MB', 20),
+        'video' => (int) env('UJIAN_MAKS_VIDEO_MB', 50),
+    ],
+
 ];

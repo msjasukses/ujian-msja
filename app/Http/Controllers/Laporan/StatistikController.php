@@ -26,6 +26,8 @@ class StatistikController extends Controller
             ->withAvg(['peserta as rata_nilai' => fn ($q) => $q->where('status', UjianPeserta::SELESAI)], 'nilai')
             ->when($r->q, fn ($q, $v) => $q->where('nama_ujian', 'like', "%{$v}%"))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
+            ->when($r->rombongan_belajar_id, fn ($q, $v) => $q->whereHas('kelas',
+                fn ($k) => $k->where('rombongan_belajar_id', $v)))
             ->orderByDesc('waktu_mulai')
             ->paginate(20)
             ->withQueryString();
@@ -33,16 +35,16 @@ class StatistikController extends Controller
         return view('laporan.statistik.index', compact('items'));
     }
 
-    public function show(Ujian $ujian)
+    public function show(Request $r, Ujian $ujian)
     {
         return view('laporan.statistik.show', [
             'ujian' => $ujian->load('mataPelajaran', 'paketSoal'),
-        ] + $this->statistik->untukUjian($ujian));
+        ] + $this->statistik->untukUjian($ujian, $r->get('rombongan_belajar_id')));
     }
 
-    public function export(Ujian $ujian)
+    public function export(Request $r, Ujian $ujian)
     {
-        $data = $this->statistik->untukUjian($ujian);
+        $data = $this->statistik->untukUjian($ujian, $r->get('rombongan_belajar_id'));
         $r = $data['ringkasan'];
         $sekolah = Sekolah::profil();
 

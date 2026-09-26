@@ -134,7 +134,7 @@
 </div>
 
 <div class="row g-3">
-    <div class="col-xl-8">
+    <div class="col-12">
         <div class="card">
             <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
                 <span>
@@ -158,6 +158,13 @@
                             <option value="{{ $k->id }}" @selected(request('rombongan_belajar_id') == $k->id)>{{ $k->nama_rombel }}</option>
                         @endforeach
                     </select>
+
+                    {{-- Jejak aktivitas punya halaman sendiri: di layar ini yang
+                         dibutuhkan pengawas keadaan terkini, bukan riwayatnya. --}}
+                    <a href="{{ route('monitoring.jejak', [$ujian] + request()->only('rombongan_belajar_id')) }}"
+                       class="btn btn-sm btn-outline-secondary text-nowrap">
+                        <i class="bi bi-clock-history me-1"></i>Jejak Aktivitas
+                    </a>
                 </form>
             </div>
 
@@ -270,31 +277,6 @@
         </div>
     </div>
 
-    <div class="col-xl-4">
-        <div class="card">
-            <div class="card-header">Jejak Aktivitas Terakhir</div>
-            <div class="list-group list-group-flush" style="max-height:38rem;overflow-y:auto">
-                @forelse ($log as $l)
-                    <div class="list-group-item py-2 {{ $l->pelanggaran ? 'jejak-pelanggaran' : ($l->event === 'sesi_ganda' ? 'jejak-ganda' : '') }}">
-                        <div class="d-flex justify-content-between gap-2">
-                            <span class="small fw-semibold">
-                                @if ($l->pelanggaran)<i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>@endif
-                                @if ($l->event === 'sesi_ganda')<i class="bi bi-people-fill text-warning-emphasis me-1"></i>@endif
-                                {{ $l->event_label }}
-                            </span>
-                            <span class="small text-muted">{{ $l->created_at->format('H:i:s') }}</span>
-                        </div>
-                        <div class="small text-muted">
-                            {{ $l->peserta?->siswa->nama_siswa ?? 'sistem' }}
-                            @if ($l->keterangan) &middot; {{ $l->keterangan }} @endif
-                        </div>
-                    </div>
-                @empty
-                    <div class="list-group-item text-muted small py-4 text-center">Belum ada aktivitas tercatat.</div>
-                @endforelse
-            </div>
-        </div>
-    </div>
 </div>
 
 <div class="mt-3">
@@ -306,14 +288,6 @@
 
 @push('head')
 <style>
-    /* Pelanggaran harus menonjol di antara jejak biasa — mulai, lanjut,
-       selesai — yang jumlahnya jauh lebih banyak. */
-    .jejak-pelanggaran { background:#fff5f5; border-left:3px solid var(--bs-danger); }
-
-    /* Login ganda bukan pelanggaran yang dihitung, tetapi sama perlunya
-       menonjol: bisa berarti joki, atau jawaban yang dikerjakan bersama. */
-    .jejak-ganda { background:#fff8e6; border-left:3px solid var(--bs-warning); }
-
     .kartu-saring { display:block; height:100%; color:inherit; text-decoration:none; }
     .kartu-saring .stat-card { transition:box-shadow .12s, transform .12s; }
     .kartu-saring:hover .stat-card { box-shadow:0 .35rem 1rem rgba(16,32,64,.12); transform:translateY(-1px); }

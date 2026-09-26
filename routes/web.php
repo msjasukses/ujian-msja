@@ -125,6 +125,7 @@ Route::middleware('pengelola')->group(function () {
     Route::get('monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
     Route::get('monitoring/{ujian}', [MonitoringController::class, 'show'])->name('monitoring.show');
     Route::get('monitoring/{ujian}/data', [MonitoringController::class, 'data'])->name('monitoring.data');
+    Route::get('monitoring/{ujian}/jejak', [MonitoringController::class, 'jejak'])->name('monitoring.jejak');
     Route::get('monitoring/{ujian}/export', [MonitoringController::class, 'export'])->name('monitoring.export');
     Route::post('monitoring/{ujian}/peserta/{peserta}/reset', [MonitoringController::class, 'reset'])->name('monitoring.reset');
     Route::post('monitoring/{ujian}/peserta/{peserta}/selesai', [MonitoringController::class, 'selesaikan'])->name('monitoring.selesai');

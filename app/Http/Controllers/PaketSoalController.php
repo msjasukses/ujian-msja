@@ -120,7 +120,7 @@ class PaketSoalController extends Controller
             'paket' => $paket_soal->load('mataPelajaran', 'tingkatKelas'),
             'terpilih' => $paket_soal->detail()->with('soal.topik')->get(),
             'tersedia' => $tersedia,
-            'daftarTopik' => Topik::aktif()->orderBy('nama_topik')->get(),
+            'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
         ]);
     }
 

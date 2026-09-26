@@ -12,6 +12,8 @@
                 <x-jenis-soal :jenis="$item->jenis" />
             </div>
             <div class="card-body">
+                <x-media-soal :soal="$item" />
+
                 <div class="soal-body mb-4" dir="auto">{!! TeksSoal::html($item->pertanyaan) !!}</div>
 
                 @switch ($item->jenis)

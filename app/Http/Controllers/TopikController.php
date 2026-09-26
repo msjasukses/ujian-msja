@@ -12,7 +12,8 @@ class TopikController extends Controller
 {
     public function index(Request $r)
     {
-        $items = Topik::with(['mataPelajaran', 'tingkatKelas'])
+        $items = Topik::milikPengguna()
+            ->with(['mataPelajaran', 'tingkatKelas'])
             ->when($r->q, fn ($q, $v) => $q->where(function ($w) use ($v) {
                 $w->where('nama_topik', 'like', "%{$v}%")
                     ->orWhere('kode_topik', 'like', "%{$v}%")
@@ -29,11 +30,13 @@ class TopikController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Angka di kartu atas mengikuti daftar di bawahnya: guru melihat
+        // hitungan topik mapel & tingkat yang diajarnya, bukan seluruh sekolah.
         $stat = [
-            'total' => Topik::count(),
-            'manual' => Topik::where('sumber', Topik::SUMBER_MANUAL)->count(),
-            'sinkron' => Topik::where('sumber', Topik::SUMBER_SINKRON)->count(),
-            'tanpa_soal' => Topik::doesntHave('soal')->count(),
+            'total' => Topik::milikPengguna()->count(),
+            'manual' => Topik::milikPengguna()->where('sumber', Topik::SUMBER_MANUAL)->count(),
+            'sinkron' => Topik::milikPengguna()->where('sumber', Topik::SUMBER_SINKRON)->count(),
+            'tanpa_soal' => Topik::milikPengguna()->doesntHave('soal')->count(),
         ];
 
         return view('topik.index', compact('items', 'stat'));
@@ -137,7 +140,8 @@ class TopikController extends Controller
 
     public function export(Request $r)
     {
-        $items = Topik::with(['mataPelajaran', 'tingkatKelas'])
+        $items = Topik::milikPengguna()
+            ->with(['mataPelajaran', 'tingkatKelas'])
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
             ->when($r->tingkat_kelas_id, fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
             ->withCount('soal')

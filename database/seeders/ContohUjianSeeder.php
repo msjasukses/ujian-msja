@@ -292,6 +292,10 @@ class ContohUjianSeeder extends Seeder
             'acak_soal' => true,
             'acak_opsi' => true,
             'status' => Ujian::DRAFT,
+            // Dipasang pada jadwal berstatus draft saja, supaya peragaan
+            // "wajib lewat ExamBro" bisa dilihat tanpa menghalangi ujian
+            // contoh yang sedang berlangsung dibuka dari peramban biasa.
+            'wajib_exambro' => true,
             'guru_id' => $paket->guru_id,
         ]);
 

@@ -28,9 +28,15 @@ class StatistikUjianService
      *     peserta: Collection<int, UjianPeserta>
      * }
      */
-    public function untukUjian(Ujian $ujian): array
+    public function untukUjian(Ujian $ujian, int|string|null $rombelId = null): array
     {
-        $peserta = $ujian->peserta()->with('siswa')->get();
+        // Dengan kelas dipilih, seluruh angka pada halaman ini — rata-rata,
+        // sebaran, ketuntasan — dihitung dari kelas itu saja, bukan disaring
+        // belakangan di tampilan.
+        $peserta = $ujian->peserta()
+            ->with('siswa')
+            ->when($rombelId, fn ($q, $v) => $q->where('rombongan_belajar_id', $v))
+            ->get();
         $selesai = $peserta->where('status', UjianPeserta::SELESAI);
         $nilai = $selesai->pluck('nilai')->map(fn ($n) => (float) $n)->sort()->values();
 

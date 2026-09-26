@@ -10,6 +10,7 @@ use App\Models\TingkatKelas;
 use App\Models\Topik;
 use App\Support\Referensi;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Contoh topik dan bank soal untuk keperluan uji coba.
@@ -54,6 +55,7 @@ class ContohBankSoalSeeder extends Seeder
 
         $this->matematika();
         $this->bahasaIndonesia();
+        $this->menyimak();
         $this->ipa();
         $this->informatika();
         $this->pai();
@@ -265,6 +267,84 @@ class ContohBankSoalSeeder extends Seeder
             ['tujuan', 'alat dan bahan', 'langkah-langkah', 'orientasi tokoh', 'komplikasi'],
             ['A', 'B', 'C'], 3, 'C3', 'sedang',
             'Orientasi tokoh dan komplikasi adalah bagian teks narasi.');
+    }
+
+    // =====================================================================
+    // Menyimak — contoh butir berlampiran audio
+    // =====================================================================
+
+    /**
+     * Satu topik menyimak untuk memperagakan lampiran audio pada butir soal.
+     *
+     * Rekamannya dibangkitkan sendiri berupa nada uji, bukan suara percakapan:
+     * seeder tidak boleh bergantung pada berkas media yang harus diunduh, dan
+     * ujian dipasang di jaringan tanpa internet. Gantilah dengan rekaman
+     * sungguhan lewat menu Input Soal saat dipakai ujian betulan.
+     */
+    protected function menyimak(): void
+    {
+        $this->topik('BIN-7-04', 'Menyimak Pengumuman Lisan', 'Bahasa Indonesia',
+            elemen: 'Menyimak',
+            cp: 'Peserta didik memahami informasi penting dari pengumuman lisan yang diperdengarkan.',
+            tp: 'Menentukan isi, tujuan, dan sasaran pengumuman yang diperdengarkan.');
+
+        $audio = $this->audioContoh();
+
+        $soal = $this->pg(
+            'Perhatikan rekaman di atas, lalu tentukan informasi yang paling sesuai dengan isi pengumuman tersebut. '
+            .'<em>(Berkas contoh masih berupa nada uji — ganti dengan rekaman pengumuman melalui menu Input Soal.)</em>',
+            [
+                'Pengumuman ditujukan kepada wali murid kelas 9',
+                'Pengumuman berisi jadwal kegiatan yang diperdengarkan pada rekaman',
+                'Pengumuman disampaikan oleh ketua kelas',
+                'Pengumuman berisi pengantar pelajaran baru',
+            ], 'B', 2, 'C2', 'sedang',
+            'Butir menyimak dijawab setelah peserta memutar rekaman pada lembar ujiannya. '
+            .'Rekaman boleh diputar ulang sebanyak yang diperlukan.');
+
+        if ($audio) {
+            $soal->update(['media_path' => $audio, 'media_tipe' => 'audio']);
+        }
+
+        $this->essay('Tuliskan kembali isi pengumuman yang kamu dengar dengan bahasamu sendiri.',
+            'Isi pengumuman ditulis lengkap: apa yang diumumkan, kepada siapa, kapan, dan di mana.',
+            ['pengumuman', 'waktu', 'tempat'], 4, 'C3', 'sedang')
+            ->update($audio ? ['media_path' => $audio, 'media_tipe' => 'audio'] : []);
+    }
+
+    /**
+     * Nada uji 3 detik sebagai lampiran audio contoh: WAV PCM 8 kHz mono,
+     * sekitar 47 KB. Dibuat sekali; pemanggilan berikutnya memakai berkas yang
+     * sudah ada, sehingga seeder tetap aman diulang.
+     */
+    protected function audioContoh(): ?string
+    {
+        $jalur = 'soal-media/contoh-menyimak.wav';
+
+        if (Storage::disk('public')->exists($jalur)) {
+            return $jalur;
+        }
+
+        $laju = 8000;
+        $detik = 3;
+        $cuplikan = $laju * $detik;
+        $data = '';
+
+        for ($i = 0; $i < $cuplikan; $i++) {
+            // Nada 440 Hz yang meredup di akhir, supaya terdengar seperti
+            // rekaman yang berhenti sendiri, bukan terpotong.
+            $peredam = 1 - ($i / $cuplikan);
+            $data .= pack('v', (int) (10000 * $peredam * sin(2 * M_PI * 440 * $i / $laju)) & 0xFFFF);
+        }
+
+        $header = 'RIFF'.pack('V', 36 + strlen($data)).'WAVEfmt '
+            .pack('V', 16).pack('v', 1).pack('v', 1)
+            .pack('V', $laju).pack('V', $laju * 2).pack('v', 2).pack('v', 16)
+            .'data'.pack('V', strlen($data));
+
+        Storage::disk('public')->put($jalur, $header.$data);
+
+        return $jalur;
     }
 
     // =====================================================================

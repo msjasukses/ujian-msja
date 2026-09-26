@@ -76,7 +76,11 @@ class Pengguna
      */
     public static function guruId(): ?int
     {
-        return static::isGuru() ? (int) Auth::guard('guru')->id() : null;
+        // Satu peramban bisa memegang sesi admin dan guru sekaligus — operator
+        // sekolah kerap masuk sebagai guru untuk memeriksa tampilannya. Dalam
+        // keadaan itu yang berlaku sesi admin, mengikuti urutan pada guard(),
+        // supaya halaman pengelola tidak diam-diam tersaring seperti milik guru.
+        return static::guard() === 'guru' ? (int) Auth::guard('guru')->id() : null;
     }
 
     public static function siswaId(): ?int

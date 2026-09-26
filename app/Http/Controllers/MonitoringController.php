@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MataPelajaran;
 use App\Models\RombonganBelajar;
+use App\Models\Siswa;
 use App\Models\Ujian;
 use App\Models\UjianKelas;
 use App\Models\UjianLog;
@@ -134,7 +135,47 @@ class MonitoringController extends Controller
             'ringkasan' => $this->ringkasan($semua),
             'statusTerpilih' => $status,
             'jumlahButir' => $ujian->paketSoal->detail()->count(),
-            'log' => UjianLog::where('ujian_id', $ujian->id)->latest('id')->limit(50)->get(),
+        ]);
+    }
+
+    /**
+     * Halaman jejak aktivitas satu ujian.
+     *
+     * Dipisahkan dari layar monitoring karena keduanya dipakai pada saat yang
+     * berbeda: layar monitoring dipantau selama ujian berlangsung dan hanya
+     * perlu keadaan terkini, sedangkan jejak aktivitas dibuka saat menelusuri
+     * kejadian — sehingga butuh seluruh catatan, penyaring, dan penomoran
+     * halaman, bukan sekadar 50 baris terakhir.
+     */
+    public function jejak(Request $r, Ujian $ujian)
+    {
+        $items = UjianLog::where('ujian_id', $ujian->id)
+            ->with(['peserta.siswa', 'peserta.rombel'])
+            ->when($r->event, fn ($q, $v) => $v === 'pelanggaran'
+                ? $q->pelanggaran()
+                : $q->where('event', $v))
+            ->when($r->rombongan_belajar_id, fn ($q, $v) => $q->whereHas('peserta',
+                fn ($p) => $p->where('rombongan_belajar_id', $v)))
+            // Nama siswa ada di database datacenter, jadi tidak bisa ikut
+            // dalam satu kueri JOIN; id-nya dicari lebih dulu di sana.
+            ->when($r->q, fn ($q, $v) => $q->whereHas('peserta',
+                fn ($p) => $p->whereIn('siswa_id', Siswa::where('nama_siswa', 'like', "%{$v}%")
+                    ->orWhere('nisn', 'like', "%{$v}%")->pluck('id'))))
+            ->latest('id')
+            ->paginate(50)
+            ->withQueryString();
+
+        $dasar = UjianLog::where('ujian_id', $ujian->id);
+
+        return view('monitoring.jejak', [
+            'ujian' => $ujian->load(['paketSoal', 'mataPelajaran']),
+            'items' => $items,
+            'stat' => [
+                'total' => (clone $dasar)->count(),
+                'pelanggaran' => (clone $dasar)->pelanggaran()->count(),
+                'sesi_ganda' => (clone $dasar)->where('event', 'sesi_ganda')->count(),
+                'ditolak' => (clone $dasar)->whereIn('event', ['token_salah', 'tolak_non_exambro'])->count(),
+            ],
         ]);
     }
 

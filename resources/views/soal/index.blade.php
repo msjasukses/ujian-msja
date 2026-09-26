@@ -101,7 +101,14 @@
                                 @if ($s->level_kognitif) &middot; {{ $s->level_kognitif }} @endif
                             </div>
                         </td>
-                        <td><x-jenis-soal :jenis="$s->jenis" /></td>
+                        <td>
+                            <x-jenis-soal :jenis="$s->jenis" />
+                            @if ($s->punya_media)
+                                <span class="badge badge-soft" title="Butir ini punya lampiran {{ $s->media_tipe }}">
+                                    <i class="bi bi-{{ $s->media_tipe === 'video' ? 'camera-video' : 'volume-up' }}"></i>
+                                </span>
+                            @endif
+                        </td>
                         <td class="small text-muted" style="max-width:14rem">{{ Str::limit($s->kunci_ringkas, 40) }}</td>
                         <td class="text-center">{{ rtrim(rtrim(number_format($s->bobot, 2, ',', '.'), '0'), ',') }}</td>
                         <td class="small">{{ $s->tingkat_kesukaran ? ucfirst($s->tingkat_kesukaran) : '-' }}</td>

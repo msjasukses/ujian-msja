@@ -83,6 +83,10 @@
                 </div>
 
                 <div class="card-body">
+                    {{-- Pemutar ditaruh di atas teks: pada soal menyimak,
+                         pertanyaannya baru masuk akal setelah rekaman diputar. --}}
+                    <x-media-soal :soal="$soal" />
+
                     <div class="soal-body mb-4" dir="auto">{!! TeksSoal::html($soal->pertanyaan) !!}</div>
 
                     @switch ($soal->jenis)

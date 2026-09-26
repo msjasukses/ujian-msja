@@ -43,6 +43,8 @@ abstract class TindakLanjutController extends Controller
             ->withCount(['peserta as selesai_count' => fn ($q) => $q->where('status', UjianPeserta::SELESAI)])
             ->when($r->q, fn ($q, $v) => $q->where('nama_ujian', 'like', "%{$v}%"))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
+            ->when($r->rombongan_belajar_id, fn ($q, $v) => $q->whereHas('kelas',
+                fn ($k) => $k->where('rombongan_belajar_id', $v)))
             ->orderByDesc('waktu_mulai')
             ->paginate(20)
             ->withQueryString();
@@ -54,11 +56,11 @@ abstract class TindakLanjutController extends Controller
         ]);
     }
 
-    public function show(Ujian $ujian)
+    public function show(Request $r, Ujian $ujian)
     {
         return view($this->folderView().'.show', [
             'ujian' => $ujian->load('mataPelajaran'),
-            'daftar' => $this->kandidat($ujian),
+            'daftar' => $this->kandidat($ujian, $r->get('rombongan_belajar_id')),
             'bentuk' => $this->daftarBentuk(),
             'jenis' => $this->jenis(),
             'routeDasar' => $this->routeDasar(),
@@ -134,9 +136,9 @@ abstract class TindakLanjutController extends Controller
         return back()->with('success', 'Rencana tindak lanjut dihapus.');
     }
 
-    public function export(Ujian $ujian)
+    public function export(Request $r, Ujian $ujian)
     {
-        $daftar = $this->kandidat($ujian);
+        $daftar = $this->kandidat($ujian, $r->get('rombongan_belajar_id'));
         $sekolah = Sekolah::profil();
         $label = strtoupper($this->jenis());
 
@@ -174,7 +176,7 @@ abstract class TindakLanjutController extends Controller
      *
      * @return Collection<int, object>
      */
-    protected function kandidat(Ujian $ujian): Collection
+    protected function kandidat(Ujian $ujian, int|string|null $rombelId = null): Collection
     {
         $kkm = (float) $ujian->kkm;
 
@@ -186,6 +188,7 @@ abstract class TindakLanjutController extends Controller
         return $ujian->peserta()
             ->with(['siswa', 'rombel'])
             ->where('status', UjianPeserta::SELESAI)
+            ->when($rombelId, fn ($q, $v) => $q->where('rombongan_belajar_id', $v))
             ->get()
             ->filter(fn (UjianPeserta $p) => $this->memenuhiSyarat($p, $kkm))
             ->map(fn (UjianPeserta $p) => (object) [

@@ -10,6 +10,7 @@ use App\Support\Pengguna;
 use App\Support\Referensi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 
@@ -29,7 +30,7 @@ class ImportSoalController extends Controller
     {
         return view('soal.import', [
             'sumber' => $r->get('sumber', 'word'),
-            'daftarTopik' => Topik::aktif()->orderBy('nama_topik')->get(),
+            'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
             'pratinjau' => session(self::SESSION_KEY),
         ]);
     }
@@ -45,7 +46,7 @@ class ImportSoalController extends Controller
                 'max:20480',
                 $r->input('sumber') === 'word' ? 'mimes:docx' : 'mimes:xlsx,xls,csv,txt',
             ],
-            'topik_id' => 'nullable|integer|exists:topik,id',
+            'topik_id' => ['nullable', 'integer', Rule::in(Topik::milikPengguna()->pluck('id')->all())],
             'mata_pelajaran_id' => Referensi::aturanMapel(),
             'tingkat_kelas_id' => Referensi::aturanTingkat(),
         ], [], [

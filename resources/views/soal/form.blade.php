@@ -21,7 +21,8 @@
     $kataKunci = old('kata_kunci', implode(', ', $item->jenis === Soal::ESSAY ? ($item->kunci['kata_kunci'] ?? []) : []));
 @endphp
 
-<form method="POST" action="{{ $item->exists ? route('soal.update', $item) : route('soal.store') }}">
+<form method="POST" enctype="multipart/form-data"
+      action="{{ $item->exists ? route('soal.update', $item) : route('soal.store') }}">
     @csrf
     @if ($item->exists) @method('PUT') @endif
 
@@ -58,6 +59,42 @@
                         pecahan bertingkat, huruf Arab, dan gambar disisipkan lewat papan di bawah.
                     </div>
 
+                </div>
+            </div>
+
+            {{-- ---------- Lampiran audio / video ---------- --}}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-volume-up me-1"></i>Audio / Video (opsional)</span>
+                    @if ($item->punya_media)
+                        <span class="badge text-bg-success-subtle text-success border border-success-subtle">
+                            {{ $item->media_tipe === 'video' ? 'Ada video' : 'Ada audio' }}
+                        </span>
+                    @endif
+                </div>
+                <div class="card-body">
+                    @if ($item->punya_media)
+                        <x-media-soal :soal="$item" judul="Lampiran saat ini" />
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="hapus_media" value="1" id="hapus_media">
+                            <label class="form-check-label" for="hapus_media">Hapus lampiran ini dari soal</label>
+                        </div>
+                    @endif
+
+                    <label class="form-label" for="media">
+                        {{ $item->punya_media ? 'Ganti dengan berkas lain' : 'Pilih berkas audio atau video' }}
+                    </label>
+                    <input type="file" name="media" id="media" accept="audio/*,video/*"
+                           class="form-control @error('media') is-invalid @enderror">
+                    @error('media')<div class="invalid-feedback">{{ $message }}</div>@enderror
+
+                    <div class="form-text">
+                        Untuk soal menyimak: rekaman diputar peserta di lembar ujiannya sendiri,
+                        dan boleh diulang sebanyak yang diperlukan.
+                        {{ \App\Services\MediaSoalService::keteranganBatas() }}
+                        Berkas disimpan di server ujian, jadi tetap dapat diputar tanpa internet.
+                    </div>
                 </div>
             </div>
 
