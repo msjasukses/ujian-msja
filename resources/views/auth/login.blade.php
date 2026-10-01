@@ -108,9 +108,11 @@
         <div class="kepala">
             <div class="logo">{{ mb_strtoupper(mb_substr(config('app.name'), 0, 1)) }}</div>
 
-            {{-- Jalan pulang bagi yang membuka login hanya untuk melihat-lihat;
-                 juga tempat berpijak setelah keluar dari aplikasi. --}}
-            <a class="tombol-beranda" href="{{ route('beranda') }}">
+            {{-- Jalan pulang ke beranda sekolah. Alamatnya relatif satu tingkat
+                 ke atas: aplikasi ujian dipasang di dalam folder di bawah
+                 beranda sekolah, sehingga tautannya ikut berpindah sendiri
+                 ketika aplikasi dipindah ke server atau alamat lain. --}}
+            <a class="tombol-beranda" href="../">
                 <i class="bi bi-arrow-left"></i> Beranda
             </a>
         </div>
