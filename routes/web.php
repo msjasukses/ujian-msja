@@ -18,9 +18,22 @@ use App\Http\Controllers\Siswa\UjianSiswaController;
 use App\Http\Controllers\SoalController;
 use App\Http\Controllers\TopikController;
 use App\Http\Controllers\UjianController;
+use App\Models\Sekolah;
+use App\Support\Pengguna;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('login'));
+/*
+ * Beranda: halaman depan sebelum masuk. Pengguna yang sesinya masih hidup
+ * langsung dibawa ke perandanya masing-masing, supaya tidak perlu menekan
+ * "Masuk" dua kali.
+ */
+Route::get('/', function () {
+    if (Pengguna::guard()) {
+        return redirect()->route(Pengguna::isSiswa() ? 'siswa.ujian.index' : 'dashboard');
+    }
+
+    return view('beranda', ['sekolah' => Sekolah::profil()]);
+})->name('beranda');
 
 // ---------------------------------------------------------------------------
 // Autentikasi

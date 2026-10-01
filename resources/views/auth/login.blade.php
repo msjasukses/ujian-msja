@@ -25,6 +25,13 @@
         .panel-kiri .logo { width:3.25rem; height:3.25rem; border-radius:.9rem;
                             background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18);
                             display:grid; place-items:center; font-size:1.4rem; font-weight:700; }
+        .panel-kiri .kepala { display:flex; align-items:center; gap:1rem; }
+        .panel-kiri .tombol-beranda { margin-left:auto; display:inline-flex; align-items:center; gap:.45rem;
+                                      padding:.5rem 1.1rem; font-size:.88rem; font-weight:600; color:#fff;
+                                      text-decoration:none; border-radius:2rem;
+                                      background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
+                                      transition:background .15s; }
+        .panel-kiri .tombol-beranda:hover { background:rgba(255,255,255,.22); }
         .panel-kiri .isi { margin:auto 0; max-width:30rem; }
         .panel-kiri h1 { font-size:3.1rem; line-height:1.14; font-weight:800; letter-spacing:-.02em; margin:0 0 1.5rem; }
         .panel-kiri p { font-size:1.02rem; line-height:1.6; color:rgba(255,255,255,.72); margin:0; }
@@ -98,7 +105,15 @@
 
 <div class="layar">
     <div class="panel-kiri">
-        <div class="logo">{{ mb_strtoupper(mb_substr(config('app.name'), 0, 1)) }}</div>
+        <div class="kepala">
+            <div class="logo">{{ mb_strtoupper(mb_substr(config('app.name'), 0, 1)) }}</div>
+
+            {{-- Jalan pulang bagi yang membuka login hanya untuk melihat-lihat;
+                 juga tempat berpijak setelah keluar dari aplikasi. --}}
+            <a class="tombol-beranda" href="{{ route('beranda') }}">
+                <i class="bi bi-arrow-left"></i> Beranda
+            </a>
+        </div>
 
         <div class="isi">
             <h1>Selamat datang di {{ config('app.name') }}.</h1>
