@@ -177,6 +177,12 @@
                                 <label class="form-label">Tingkat kelas</label>
                                 <x-pilih-tingkat />
                             </div>
+                            @if (Referensi::pakaiJurusan())
+                                <div class="col-12">
+                                    <label class="form-label">Jurusan</label>
+                                    <x-pilih-jurusan />
+                                </div>
+                            @endif
                         </div>
 
                         <button class="btn btn-primary w-100">

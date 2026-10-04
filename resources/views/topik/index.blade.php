@@ -3,7 +3,7 @@
 @section('subtitle', 'Materi/topik payung butir soal — bisa diinput manual atau ditarik dari CP-TP-ATP kurikulum')
 
 @section('content')
-@php use App\Models\Topik; use App\Support\Referensi; @endphp
+@php use App\Models\Topik; use App\Support\Referensi; $pakaiJurusan = Referensi::pakaiJurusan(); @endphp
 
 <div class="row g-3 mb-3">
     <div class="col-6 col-lg-3"><x-stat label="Total topik" :value="$stat['total']" icon="bi-diagram-3" /></div>
@@ -31,11 +31,11 @@
 
     <div class="card-body border-bottom bg-light-subtle py-2">
         <form class="row g-2 align-items-end">
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
                 <label class="form-label">Cari</label>
                 <input name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="Nama topik / elemen">
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
                 <label class="form-label">Mata pelajaran</label>
                 <select name="mata_pelajaran_id" class="form-select form-select-sm">
                     <option value="">Semua</option>
@@ -53,6 +53,12 @@
                     @endforeach
                 </select>
             </div>
+            @if ($pakaiJurusan)
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Jurusan</label>
+                    <x-pilih-jurusan :value="request('jurusan_id')" kosong="Semua" class="form-select-sm" />
+                </div>
+            @endif
             <div class="col-6 col-md-2">
                 <label class="form-label">Sumber</label>
                 <select name="sumber" class="form-select form-select-sm">
@@ -76,7 +82,7 @@
                     <th style="width:3rem">#</th>
                     <th>Topik</th>
                     <th>Mata Pelajaran</th>
-                    <th>Tingkat / Fase</th>
+                    <th>{{ $pakaiJurusan ? 'Tingkat / Jurusan / Fase' : 'Tingkat / Fase' }}</th>
                     <th>Semester</th>
                     <th class="text-center">Soal</th>
                     <th>Sumber</th>
@@ -96,7 +102,9 @@
                             </div>
                         </td>
                         <td class="small">{{ $t->mataPelajaran->nama_mapel ?? '-' }}</td>
-                        <td class="small">{{ $t->tingkatKelas->nama ?? '-' }}{{ $t->fase ? ' / Fase '.$t->fase : '' }}</td>
+                        <td class="small">
+                            {{ $t->tingkatKelas->nama ?? '-' }}{{ $pakaiJurusan ? ' / '.($t->jurusan->ringkas ?? 'Semua jurusan') : '' }}{{ $t->fase ? ' / Fase '.$t->fase : '' }}
+                        </td>
                         <td class="small">{{ $t->semester ?: '-' }}</td>
                         <td class="text-center">
                             <a href="{{ route('soal.index', ['topik_id' => $t->id]) }}" class="badge badge-soft text-decoration-none">

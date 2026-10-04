@@ -104,6 +104,9 @@
             <a class="nav-link px-3 py-2 {{ request()->routeIs('pengguna.*') ? 'active' : '' }}" href="{{ route('pengguna.index') }}">
                 <i class="bi bi-person-gear me-2"></i>Pengguna
             </a>
+            <a class="nav-link px-3 py-2 {{ request()->routeIs('pengaturan.*') ? 'active' : '' }}" href="{{ route('pengaturan.index') }}">
+                <i class="bi bi-gear me-2"></i>Pengaturan
+            </a>
         @endif
 
         <div class="py-3"></div>

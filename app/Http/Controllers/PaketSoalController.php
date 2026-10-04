@@ -26,13 +26,14 @@ class PaketSoalController extends Controller
     public function index(Request $r)
     {
         $items = $this->kueriDasar()
-            ->with(['mataPelajaran', 'tingkatKelas', 'guru'])
+            ->with(['mataPelajaran', 'tingkatKelas', 'jurusan', 'guru'])
             ->withCount(['detail', 'ujian'])
             ->when($r->q, fn ($q, $v) => $q->where(function ($w) use ($v) {
                 $w->where('nama_paket', 'like', "%{$v}%")->orWhere('kode_paket', 'like', "%{$v}%");
             }))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
             ->when($r->tingkat_kelas_id, fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
+            ->when($r->jurusan_id, fn ($q, $v) => $q->where('jurusan_id', $v))
             ->when($r->jenis_ujian, fn ($q, $v) => $q->where('jenis_ujian', $v))
             ->latest('id')
             ->paginate(20)
@@ -108,6 +109,7 @@ class PaketSoalController extends Controller
                 fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
             ->when($r->filled('tingkat_kelas_id') ? $r->tingkat_kelas_id : $paket_soal->tingkat_kelas_id,
                 fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
+            ->tap(fn ($q) => $this->saringJurusan($q, $paket_soal))
             ->when($r->jenis, fn ($q, $v) => $q->where('jenis', $v))
             ->when($r->topik_id, fn ($q, $v) => $q->where('topik_id', $v))
             ->when($r->tingkat_kesukaran, fn ($q, $v) => $q->where('tingkat_kesukaran', $v))
@@ -117,7 +119,7 @@ class PaketSoalController extends Controller
             ->withQueryString();
 
         return view('paket-soal.kelola', [
-            'paket' => $paket_soal->load('mataPelajaran', 'tingkatKelas'),
+            'paket' => $paket_soal->load('mataPelajaran', 'tingkatKelas', 'jurusan'),
             'terpilih' => $paket_soal->detail()->with('soal.topik')->get(),
             'tersedia' => $tersedia,
             'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
@@ -248,6 +250,7 @@ class PaketSoalController extends Controller
                 ->where('tingkat_kesukaran', $tingkat)
                 ->when($paket_soal->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
                 ->when($paket_soal->tingkat_kelas_id, fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
+                ->tap(fn ($q) => $this->saringJurusan($q, $paket_soal))
                 ->when($r->jenis_acak, fn ($q, $v) => $q->where('jenis', $v))
                 ->when(Pengguna::guruId(), fn ($q, $g) => $q->where('guru_id', $g))
                 ->inRandomOrder()
@@ -307,6 +310,18 @@ class PaketSoalController extends Controller
             ->unduh('paket-soal-'.Str::slug($paket_soal->kode_paket).'.xlsx');
     }
 
+    /**
+     * Paket berjurusan mengambil butir jurusan itu beserta butir umum (tanpa
+     * jurusan) — soal mapel umum dipakai semua jurusan. Jurusan paket
+     * diabaikan bila jenjang sekolah sudah bukan SMA/SMK.
+     */
+    protected function saringJurusan($q, PaketSoal $paket): void
+    {
+        if (Referensi::pakaiJurusan() && $paket->jurusan_id) {
+            $q->where(fn ($w) => $w->where('jurusan_id', $paket->jurusan_id)->orWhereNull('jurusan_id'));
+        }
+    }
+
     protected function kueriDasar()
     {
         return PaketSoal::query()
@@ -333,6 +348,7 @@ class PaketSoalController extends Controller
             'nama_paket' => 'required|string|max:255',
             'mata_pelajaran_id' => Referensi::aturanMapel($r->route('paket_soal')?->mata_pelajaran_id),
             'tingkat_kelas_id' => Referensi::aturanTingkat($r->route('paket_soal')?->tingkat_kelas_id),
+            ...Referensi::aturanJurusan($r->route('paket_soal')?->jurusan_id),
             'tahun_ajaran' => Referensi::aturanTahunAjaran($r->route('paket_soal')?->tahun_ajaran),
             'semester' => 'nullable|string|max:20',
             'jenis_ujian' => 'nullable|string|max:30',

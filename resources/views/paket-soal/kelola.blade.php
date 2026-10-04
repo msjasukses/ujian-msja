@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Pilih Soal — '.$paket->nama_paket)
-@section('subtitle', $paket->kode_paket.' · '.($paket->mataPelajaran->nama_mapel ?? 'semua mapel').' · '.($paket->tingkatKelas->nama ?? 'semua tingkat'))
+@section('subtitle', $paket->kode_paket.' · '.($paket->mataPelajaran->nama_mapel ?? 'semua mapel').' · '.($paket->tingkatKelas->nama ?? 'semua tingkat')
+    .(\App\Support\Referensi::pakaiJurusan() ? ' · '.($paket->jurusan ? $paket->jurusan->ringkas.' + umum' : 'semua jurusan') : ''))
 
 @section('content')
 @php use App\Models\Soal; use App\Support\TeksSoal; use App\Support\Referensi; @endphp

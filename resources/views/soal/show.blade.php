@@ -87,6 +87,9 @@
                     <tr><td class="text-muted">Topik</td><td>{{ $item->topik->nama_topik ?? '-' }}</td></tr>
                     <tr><td class="text-muted">Mata pelajaran</td><td>{{ $item->mataPelajaran->nama_mapel ?? '-' }}</td></tr>
                     <tr><td class="text-muted">Tingkat</td><td>{{ $item->tingkatKelas->nama ?? '-' }}</td></tr>
+                    @if (\App\Support\Referensi::pakaiJurusan())
+                        <tr><td class="text-muted">Jurusan</td><td>{{ $item->jurusan->label ?? 'Semua jurusan' }}</td></tr>
+                    @endif
                     <tr><td class="text-muted">Bobot</td><td>{{ (float) $item->bobot }}</td></tr>
                     <tr><td class="text-muted">Kesukaran</td><td>{{ $item->tingkat_kesukaran ? ucfirst($item->tingkat_kesukaran) : '-' }}</td></tr>
                     <tr><td class="text-muted">Level kognitif</td><td>{{ $item->level_kognitif ?: '-' }}</td></tr>

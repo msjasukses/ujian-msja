@@ -11,6 +11,7 @@ use App\Http\Controllers\Laporan\StatistikController;
 use App\Http\Controllers\LogLoginController;
 use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\PaketSoalController;
+use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\PenggunaController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\ReferensiController as Ref;
@@ -156,6 +157,9 @@ Route::middleware('pengelola')->group(function () {
 
         Route::delete('pengguna/hapus-massal', [PenggunaController::class, 'hapusMassal'])->name('pengguna.hapus-massal');
         Route::resource('pengguna', PenggunaController::class)->except('show');
+
+        Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
+        Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
     });
 });
 

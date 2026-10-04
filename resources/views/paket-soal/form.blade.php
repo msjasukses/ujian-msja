@@ -28,7 +28,7 @@
                             @error('nama_paket')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-md-{{ Referensi::pakaiJurusan() ? 12 : 6 }}">
                             <label class="form-label">Mata pelajaran</label>
                             <x-pilih-mapel :value="$item->mata_pelajaran_id" />
                             <div class="form-text">Dipakai sebagai penyaring bawaan saat memilih butir soal.</div>
@@ -37,6 +37,13 @@
                             <label class="form-label">Tingkat kelas</label>
                             <x-pilih-tingkat :value="$item->tingkat_kelas_id" />
                         </div>
+                        @if (Referensi::pakaiJurusan())
+                            <div class="col-md-6">
+                                <label class="form-label">Jurusan</label>
+                                <x-pilih-jurusan :value="$item->jurusan_id" />
+                                <div class="form-text">Saat memilih butir, bank soal menampilkan butir jurusan ini beserta butir umum.</div>
+                            </div>
+                        @endif
 
                         <div class="col-md-4">
                             <label class="form-label">Jenis ujian</label>

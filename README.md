@@ -25,6 +25,7 @@ ini tidak pernah menulis ke sana dan satu sumber kebenaran tetap terjaga.
 | **Hasil & Laporan Ujian** | Daftar Nilai (+koreksi essay), Statistik, Analisis Butir Soal, Remidial, Pengayaan — semuanya dengan export Excel |
 | **Monitoring Ujian** | Pemantauan langsung (auto-refresh 15 detik), reset peserta, kumpul paksa, buka kunci pelanggaran, jejak aktivitas |
 | **Log Login** | Riwayat percobaan masuk semua peran + export Excel |
+| **Pengaturan** | Jenjang sekolah (SD/SMP/SMA/SMK). Pada **SMA dan SMK**, setiap isian tingkat kelas — Topik, Bank Soal, Import, Pemilihan Soal — disertai pilihan **jurusan** dari Data Center |
 | **Data Center** | Tampilan read-only data siswa, guru, wali kelas, guru mapel, mapel, tingkat kelas, tahun ajaran |
 
 ### Jenis soal yang didukung
@@ -650,6 +651,29 @@ Yang dihasilkan:
 | **Log login** | 60 baris percobaan masuk dari ketiga peran, sekitar 20% gagal |
 
 Token ujian contoh: `MTK7PAS`, `BIN7UH`, `IPA7PTS`.
+
+### Contoh ujian soal audio & video
+
+```bash
+php artisan db:seed --class=ContohUjianMediaSeeder
+```
+
+Membuat satu jadwal ujian **Seni Budaya Kelas 7** berisi dua butir pilihan
+ganda: satu menyimak **rekaman tangga nada** (audio WAV, ±5 detik) dan satu
+mengamati **tayangan pola ketukan birama 3/4** (video MP4 tanpa suara, ±11
+detik). Jadwalnya langsung berstatus aktif dan terbuka seminggu, dengan satu
+kelas Kelas 7 sebagai peserta. Token: `MEDIA7`.
+
+Rekaman dan tayangannya **dibangkitkan oleh seeder sendiri**, tidak diunduh,
+jadi tetap berjalan di jaringan sekolah tanpa internet dan tanpa ffmpeg.
+Videonya disusun langsung sebagai H.264 Baseline: makroblok yang berubah
+disimpan mentah (I_PCM), yang tidak berubah disalin dari bingkai sebelumnya —
+lihat `database/seeders/Support/VideoPcm.php`. Hasilnya cukup untuk mencoba
+pemutar di lembar ujian; untuk ujian betulan, ganti dengan rekaman sungguhan
+lewat menu Input Soal.
+
+Aman diulang. Paket dan jadwalnya berawalan `CTHM-`, berbeda dari `CTH-`,
+sehingga seeder ini dan `ContohSeeder` tidak saling menghapus data.
 
 > Ujian yang "sedang berlangsung" ditambatkan pada waktu seeding — jendelanya
 > terbuka 120 menit ke depan. Setelah lewat, peserta yang belum mengumpulkan

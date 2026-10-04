@@ -49,6 +49,7 @@ class ImportSoalController extends Controller
             'topik_id' => ['nullable', 'integer', Rule::in(Topik::milikPengguna()->pluck('id')->all())],
             'mata_pelajaran_id' => Referensi::aturanMapel(),
             'tingkat_kelas_id' => Referensi::aturanTingkat(),
+            ...Referensi::aturanJurusan(),
         ], [], [
             'berkas' => 'Berkas',
         ]);
@@ -69,6 +70,7 @@ class ImportSoalController extends Controller
             'topik_id' => $r->input('topik_id'),
             'mata_pelajaran_id' => $r->input('mata_pelajaran_id'),
             'tingkat_kelas_id' => $r->input('tingkat_kelas_id'),
+            'jurusan_id' => Referensi::pakaiJurusan() ? $r->input('jurusan_id') : null,
             'soal' => $hasil['soal'],
             'galat' => $hasil['galat'],
         ];
@@ -112,6 +114,9 @@ class ImportSoalController extends Controller
                     'topik_id' => $pratinjau['topik_id'] ?: null,
                     'mata_pelajaran_id' => $pratinjau['mata_pelajaran_id'] ?: null,
                     'tingkat_kelas_id' => $pratinjau['tingkat_kelas_id'] ?: null,
+                    // Pratinjau yang dibuat sebelum ada pilihan jurusan tidak
+                    // punya kunci ini.
+                    'jurusan_id' => ($pratinjau['jurusan_id'] ?? null) ?: null,
                     'tahun_ajaran' => $tahunAjaran,
                     'guru_id' => Pengguna::guruId(),
                     'is_aktif' => true,

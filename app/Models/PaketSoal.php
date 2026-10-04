@@ -32,6 +32,7 @@ class PaketSoal extends Model
         'nama_paket',
         'mata_pelajaran_id',
         'tingkat_kelas_id',
+        'jurusan_id',
         'tahun_ajaran',
         'semester',
         'jenis_ujian',
@@ -74,6 +75,11 @@ class PaketSoal extends Model
     public function tingkatKelas()
     {
         return $this->belongsTo(TingkatKelas::class);
+    }
+
+    public function jurusan()
+    {
+        return $this->belongsTo(Jurusan::class);
     }
 
     public function guru()

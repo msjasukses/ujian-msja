@@ -4,8 +4,11 @@ namespace App\Support;
 
 use App\Models\Guru;
 use App\Models\GuruMapel;
+use App\Models\Jurusan;
 use App\Models\MataPelajaran;
+use App\Models\Pengaturan;
 use App\Models\RombonganBelajar;
+use App\Models\Sekolah;
 use App\Models\TahunAjaran;
 use App\Models\TingkatKelas;
 use Illuminate\Support\Collection;
@@ -18,6 +21,9 @@ use Illuminate\Validation\Rule;
  */
 class Referensi
 {
+    /** Jenjang yang membagi siswanya per jurusan. */
+    public const JENJANG_BERJURUSAN = ['SMA', 'SMK'];
+
     /** @var array<string, mixed> */
     protected static array $cache = [];
 
@@ -90,6 +96,23 @@ class Referensi
         return static::aturanPilihan(static::tingkat()->pluck('id')->all(), $nilaiLama);
     }
 
+    /**
+     * Aturan validasi jurusan_id, sudah lengkap dengan kuncinya. Pada jenjang
+     * tanpa jurusan hasilnya kosong, sehingga jurusan_id tidak ikut tersimpan
+     * dan jurusan yang sudah tercatat tidak terhapus hanya karena jenjangnya
+     * diganti.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public static function aturanJurusan(int|string|null $nilaiLama = null): array
+    {
+        if (! static::pakaiJurusan()) {
+            return [];
+        }
+
+        return ['jurusan_id' => static::aturanPilihan(static::jurusan()->pluck('id')->all(), $nilaiLama)];
+    }
+
     protected static function aturanPilihan(array $boleh, int|string|null $nilaiLama): array
     {
         if (filled($nilaiLama)) {
@@ -116,6 +139,86 @@ class Referensi
         $ids = $guru->mapelIds(static::tahunAjaranAktif()?->id);
 
         return $ids ?: $guru->mapelIds();
+    }
+
+    /** @return array<string, string> */
+    public static function daftarJenjang(): array
+    {
+        return [
+            'SD' => 'SD / MI',
+            'SMP' => 'SMP / MTs',
+            'SMA' => 'SMA / MA',
+            'SMK' => 'SMK / MAK',
+        ];
+    }
+
+    /**
+     * Jenjang sekolah: SD, SMP, SMA, atau SMK.
+     *
+     * Diatur admin lewat menu Pengaturan. Selama belum pernah disimpan,
+     * dipakai jenjang sekolah yang tercatat di Data Center.
+     */
+    public static function jenjang(): ?string
+    {
+        return static::normalJenjang(Pengaturan::ambil(Pengaturan::JENJANG))
+            ?? static::jenjangDataCenter();
+    }
+
+    public static function jenjangDataCenter(): ?string
+    {
+        // Disimpan sebagai '' bila tidak dikenali, karena nilai null tidak
+        // tertahan di cache dan Data Center akan ditanya ulang terus.
+        return static::ingat('jenjang_datacenter',
+            fn () => static::normalJenjang(Sekolah::profil()?->jenjang) ?? '') ?: null;
+    }
+
+    /** Pilihan jurusan hanya muncul di jenjang SMA dan SMK. */
+    public static function pakaiJurusan(): bool
+    {
+        return in_array(static::jenjang(), self::JENJANG_BERJURUSAN, true);
+    }
+
+    /**
+     * Seragamkan tulisan jenjang ("smk", "SMK/MAK", "MA") menjadi kodenya;
+     * yang tidak dikenali menjadi null.
+     */
+    public static function normalJenjang(?string $nilai): ?string
+    {
+        $nilai = strtoupper(trim((string) $nilai));
+
+        return match (true) {
+            $nilai === '' => null,
+            array_key_exists($nilai, static::daftarJenjang()) => $nilai,
+            str_contains($nilai, 'SMK') || str_contains($nilai, 'MAK') => 'SMK',
+            str_contains($nilai, 'SMA') || $nilai === 'MA' => 'SMA',
+            str_contains($nilai, 'SMP') || str_contains($nilai, 'MTS') => 'SMP',
+            str_contains($nilai, 'SD') || $nilai === 'MI' => 'SD',
+            default => null,
+        };
+    }
+
+    /**
+     * Jurusan yang boleh dipilih pengguna yang sedang masuk. Untuk guru,
+     * diturunkan dari rombel yang diajarnya, sama seperti tingkat kelas.
+     *
+     * @return Collection<int, Jurusan>
+     */
+    public static function jurusan(): Collection
+    {
+        $guruId = Pengguna::guruId();
+
+        return static::ingat('jurusan:'.($guruId ?? 'semua'), function () use ($guruId) {
+            $semua = Jurusan::aktif()->orderBy('nama_jurusan')->get();
+
+            if (! $guruId) {
+                return $semua;
+            }
+
+            $ids = static::rombel($guruId)->pluck('jurusan_id')
+                ->filter()->map(fn ($id) => (int) $id)->unique()->all();
+
+            return $ids === [] ? $semua : $semua->whereIn('id', $ids)->values();
+        });
     }
 
     /** @return Collection<int, TahunAjaran> */

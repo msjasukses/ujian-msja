@@ -13,7 +13,7 @@ class TopikController extends Controller
     public function index(Request $r)
     {
         $items = Topik::milikPengguna()
-            ->with(['mataPelajaran', 'tingkatKelas'])
+            ->with(['mataPelajaran', 'tingkatKelas', 'jurusan'])
             ->when($r->q, fn ($q, $v) => $q->where(function ($w) use ($v) {
                 $w->where('nama_topik', 'like', "%{$v}%")
                     ->orWhere('kode_topik', 'like', "%{$v}%")
@@ -21,6 +21,7 @@ class TopikController extends Controller
             }))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
             ->when($r->tingkat_kelas_id, fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
+            ->when($r->jurusan_id, fn ($q, $v) => $q->where('jurusan_id', $v))
             ->when($r->sumber, fn ($q, $v) => $q->where('sumber', $v))
             ->when($r->semester, fn ($q, $v) => $q->where('semester', $v))
             ->withCount('soal')
@@ -141,19 +142,25 @@ class TopikController extends Controller
     public function export(Request $r)
     {
         $items = Topik::milikPengguna()
-            ->with(['mataPelajaran', 'tingkatKelas'])
+            ->with(['mataPelajaran', 'tingkatKelas', 'jurusan'])
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
             ->when($r->tingkat_kelas_id, fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
+            ->when($r->jurusan_id, fn ($q, $v) => $q->where('jurusan_id', $v))
             ->withCount('soal')
             ->orderBy('mata_pelajaran_id')->orderBy('urutan')
             ->get();
 
-        $rows = $items->values()->map(fn ($t, $i) => [
+        // Kolom Jurusan hanya ada pada SMA/SMK, di jenjang lain isinya
+        // selalu kosong.
+        $pakaiJurusan = Referensi::pakaiJurusan();
+
+        $rows = $items->values()->map(fn ($t, $i) => array_merge([
             $i + 1,
             $t->kode_topik,
             $t->nama_topik,
             $t->mataPelajaran->nama_mapel ?? '-',
             $t->tingkatKelas->nama ?? '-',
+        ], $pakaiJurusan ? [$t->jurusan->ringkas ?? 'Semua'] : [], [
             $t->fase,
             $t->semester,
             $t->tahun_ajaran,
@@ -161,12 +168,13 @@ class TopikController extends Controller
             strip_tags((string) $t->tujuan_pembelajaran),
             $t->sumber === Topik::SUMBER_SINKRON ? 'Sinkron CP-TP-ATP' : 'Manual',
             $t->soal_count,
-        ]);
+        ]));
 
         return ExcelExport::make('Topik')
             ->judul('DAFTAR TOPIK / MATERI UJIAN', 'Dicetak: '.now()->format('d/m/Y H:i'))
-            ->header(['No', 'Kode', 'Nama Topik', 'Mata Pelajaran', 'Tingkat', 'Fase', 'Semester',
-                'Tahun Ajaran', 'Elemen', 'Tujuan Pembelajaran', 'Sumber', 'Jumlah Soal'])
+            ->header(array_merge(['No', 'Kode', 'Nama Topik', 'Mata Pelajaran', 'Tingkat'],
+                $pakaiJurusan ? ['Jurusan'] : [],
+                ['Fase', 'Semester', 'Tahun Ajaran', 'Elemen', 'Tujuan Pembelajaran', 'Sumber', 'Jumlah Soal']))
             ->rows($rows)
             ->unduh('daftar-topik-'.now()->format('Ymd-His').'.xlsx');
     }
@@ -178,6 +186,7 @@ class TopikController extends Controller
             'nama_topik' => 'required|string|max:255',
             'mata_pelajaran_id' => Referensi::aturanMapel($r->route('topik')?->mata_pelajaran_id),
             'tingkat_kelas_id' => Referensi::aturanTingkat($r->route('topik')?->tingkat_kelas_id),
+            ...Referensi::aturanJurusan($r->route('topik')?->jurusan_id),
             'fase' => 'nullable|string|max:10',
             'semester' => 'nullable|string|max:20',
             'tahun_ajaran' => Referensi::aturanTahunAjaran($r->route('topik')?->tahun_ajaran),

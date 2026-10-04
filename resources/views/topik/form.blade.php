@@ -71,6 +71,13 @@
                         <label class="form-label">Tingkat kelas</label>
                         <x-pilih-tingkat :value="$item->tingkat_kelas_id" />
                     </div>
+                    @if (Referensi::pakaiJurusan())
+                        <div class="mb-3">
+                            <label class="form-label">Jurusan</label>
+                            <x-pilih-jurusan :value="$item->jurusan_id" />
+                            <div class="form-text">Kosongkan untuk topik mapel umum yang berlaku di semua jurusan.</div>
+                        </div>
+                    @endif
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label">Fase</label>

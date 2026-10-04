@@ -54,6 +54,7 @@ class Soal extends Model
         'topik_id',
         'mata_pelajaran_id',
         'tingkat_kelas_id',
+        'jurusan_id',
         'tahun_ajaran',
         'jenis',
         'pertanyaan',
@@ -101,6 +102,11 @@ class Soal extends Model
     public function tingkatKelas()
     {
         return $this->belongsTo(TingkatKelas::class);
+    }
+
+    public function jurusan()
+    {
+        return $this->belongsTo(Jurusan::class);
     }
 
     public function guru()

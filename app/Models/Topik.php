@@ -26,6 +26,7 @@ class Topik extends Model
         'nama_topik',
         'mata_pelajaran_id',
         'tingkat_kelas_id',
+        'jurusan_id',
         'fase',
         'semester',
         'tahun_ajaran',
@@ -50,11 +51,11 @@ class Topik extends Model
      * Topik yang relevan bagi pengguna yang sedang masuk.
      *
      * Guru hanya melihat topik pada mata pelajaran yang diampunya dan tingkat
-     * kelas yang diajarnya; admin/operator melihat seluruhnya. Topik yang
-     * mapel atau tingkatnya belum diisi ikut ditampilkan — topik semacam itu
-     * tidak menunjuk mapel siapa pun, dan bila disembunyikan, topik yang baru
-     * dibuat guru tanpa mengisi kedua kolom itu akan lenyap dari daftarnya
-     * sendiri.
+     * kelas yang diajarnya — juga jurusannya, pada SMA/SMK; admin/operator
+     * melihat seluruhnya. Topik yang mapel, tingkat, atau jurusannya belum
+     * diisi ikut ditampilkan — topik semacam itu tidak menunjuk mapel siapa
+     * pun, dan bila disembunyikan, topik yang baru dibuat guru tanpa mengisi
+     * kolom itu akan lenyap dari daftarnya sendiri.
      */
     public function scopeMilikPengguna(Builder $q): Builder
     {
@@ -68,7 +69,10 @@ class Topik extends Model
                 ->orWhereNull('mata_pelajaran_id'))
             ->where(fn ($w) => $w
                 ->whereIn('tingkat_kelas_id', Referensi::tingkat()->pluck('id'))
-                ->orWhereNull('tingkat_kelas_id'));
+                ->orWhereNull('tingkat_kelas_id'))
+            ->when(Referensi::pakaiJurusan(), fn ($q) => $q->where(fn ($w) => $w
+                ->whereIn('jurusan_id', Referensi::jurusan()->pluck('id'))
+                ->orWhereNull('jurusan_id')));
     }
 
     public function mataPelajaran()
@@ -79,6 +83,11 @@ class Topik extends Model
     public function tingkatKelas()
     {
         return $this->belongsTo(TingkatKelas::class);
+    }
+
+    public function jurusan()
+    {
+        return $this->belongsTo(Jurusan::class);
     }
 
     public function soal(): HasMany

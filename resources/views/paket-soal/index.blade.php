@@ -3,7 +3,7 @@
 @section('subtitle', 'Paket soal — kumpulan butir terpilih yang siap dipasang ke jadwal ujian')
 
 @section('content')
-@php use App\Models\PaketSoal; use App\Support\Referensi; @endphp
+@php use App\Models\PaketSoal; use App\Support\Referensi; $pakaiJurusan = Referensi::pakaiJurusan(); @endphp
 
 <div class="card">
     <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
@@ -18,11 +18,11 @@
 
     <div class="card-body border-bottom bg-light-subtle py-2">
         <form class="row g-2 align-items-end">
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
                 <label class="form-label">Cari</label>
                 <input name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="Nama / kode paket">
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
                 <label class="form-label">Mata pelajaran</label>
                 <select name="mata_pelajaran_id" class="form-select form-select-sm">
                     <option value="">Semua</option>
@@ -40,6 +40,12 @@
                     @endforeach
                 </select>
             </div>
+            @if ($pakaiJurusan)
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Jurusan</label>
+                    <x-pilih-jurusan :value="request('jurusan_id')" kosong="Semua" class="form-select-sm" />
+                </div>
+            @endif
             <div class="col-6 col-md-2">
                 <label class="form-label">Jenis ujian</label>
                 <select name="jenis_ujian" class="form-select form-select-sm">
@@ -64,7 +70,7 @@
                     <th style="width:3rem">#</th>
                     <th>Paket</th>
                     <th>Mata Pelajaran</th>
-                    <th>Tingkat</th>
+                    <th>{{ $pakaiJurusan ? 'Tingkat / Jurusan' : 'Tingkat' }}</th>
                     <th class="text-center">Butir</th>
                     <th class="text-center">Dipakai Ujian</th>
                     <th style="width:11rem"></th>
@@ -84,7 +90,9 @@
                             </div>
                         </td>
                         <td class="small">{{ $p->mataPelajaran->nama_mapel ?? '-' }}</td>
-                        <td class="small">{{ $p->tingkatKelas->nama ?? '-' }}</td>
+                        <td class="small">
+                            {{ $p->tingkatKelas->nama ?? '-' }}{{ $pakaiJurusan ? ' / '.($p->jurusan->ringkas ?? 'Semua jurusan') : '' }}
+                        </td>
                         <td class="text-center">
                             <span class="badge {{ $p->detail_count ? 'badge-soft' : 'text-bg-warning' }}">{{ $p->detail_count }}</span>
                         </td>

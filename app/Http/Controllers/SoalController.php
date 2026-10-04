@@ -22,12 +22,13 @@ class SoalController extends Controller
     public function index(Request $r)
     {
         $items = $this->kueriDasar()
-            ->with(['topik', 'mataPelajaran', 'tingkatKelas'])
+            ->with(['topik', 'mataPelajaran', 'tingkatKelas', 'jurusan'])
             ->when($r->q, fn ($q, $v) => $q->where('pertanyaan', 'like', "%{$v}%"))
             ->when($r->jenis, fn ($q, $v) => $q->where('jenis', $v))
             ->when($r->topik_id, fn ($q, $v) => $q->where('topik_id', $v))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
             ->when($r->tingkat_kelas_id, fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
+            ->when($r->jurusan_id, fn ($q, $v) => $q->where('jurusan_id', $v))
             ->when($r->tingkat_kesukaran, fn ($q, $v) => $q->where('tingkat_kesukaran', $v))
             ->latest('id')
             ->paginate(20)
@@ -71,7 +72,7 @@ class SoalController extends Controller
 
     public function show(Soal $soal)
     {
-        return view('soal.show', ['item' => $soal->load(['topik', 'mataPelajaran', 'tingkatKelas'])]);
+        return view('soal.show', ['item' => $soal->load(['topik', 'mataPelajaran', 'tingkatKelas', 'jurusan'])]);
     }
 
     public function edit(Soal $soal)
@@ -145,6 +146,7 @@ class SoalController extends Controller
             ->when($r->jenis, fn ($q, $v) => $q->where('jenis', $v))
             ->when($r->topik_id, fn ($q, $v) => $q->where('topik_id', $v))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
+            ->when($r->jurusan_id, fn ($q, $v) => $q->where('jurusan_id', $v))
             ->orderBy('id')
             ->get();
 
@@ -214,6 +216,7 @@ class SoalController extends Controller
             )],
             'mata_pelajaran_id' => Referensi::aturanMapel($r->route('soal')?->mata_pelajaran_id),
             'tingkat_kelas_id' => Referensi::aturanTingkat($r->route('soal')?->tingkat_kelas_id),
+            ...Referensi::aturanJurusan($r->route('soal')?->jurusan_id),
             'tahun_ajaran' => Referensi::aturanTahunAjaran($r->route('soal')?->tahun_ajaran),
             'pertanyaan' => 'required|string',
             'bobot' => 'required|numeric|min:0.1|max:100',

@@ -3,7 +3,7 @@
 @section('subtitle', 'Kumpulan butir soal semua jenis')
 
 @section('content')
-@php use App\Models\Soal; use App\Support\TeksSoal; use App\Support\Referensi; @endphp
+@php use App\Models\Soal; use App\Support\TeksSoal; use App\Support\Referensi; $pakaiJurusan = Referensi::pakaiJurusan(); @endphp
 
 <div class="row g-2 mb-3">
     <div class="col-6 col-lg-2"><x-stat label="Total butir" :value="$total" icon="bi-journal-text" /></div>
@@ -34,7 +34,7 @@
 
     <div class="card-body border-bottom bg-light-subtle py-2">
         <form class="row g-2 align-items-end">
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
                 <label class="form-label">Cari pertanyaan</label>
                 <input name="q" value="{{ request('q') }}" class="form-control form-control-sm">
             </div>
@@ -47,7 +47,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
                 <label class="form-label">Topik</label>
                 <select name="topik_id" class="form-select form-select-sm">
                     <option value="">Semua</option>
@@ -65,6 +65,12 @@
                     @endforeach
                 </select>
             </div>
+            @if ($pakaiJurusan)
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Jurusan</label>
+                    <x-pilih-jurusan :value="request('jurusan_id')" kosong="Semua" class="form-select-sm" />
+                </div>
+            @endif
             <div class="col-12 col-md-2 d-flex gap-2">
                 <button class="btn btn-sm btn-primary flex-grow-1"><i class="bi bi-funnel me-1"></i>Filter</button>
                 <a href="{{ route('soal.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
@@ -98,6 +104,7 @@
                                      di belakangnya baru berjalan setelah propertinya terbaca. --}}
                                 {{ $s->topik?->nama_topik ? Str::limit($s->topik->nama_topik, 45) : 'tanpa topik' }}
                                 &middot; {{ $s->mataPelajaran->nama_mapel ?? 'tanpa mapel' }}
+                                @if ($pakaiJurusan && $s->jurusan) &middot; {{ $s->jurusan->ringkas }} @endif
                                 @if ($s->level_kognitif) &middot; {{ $s->level_kognitif }} @endif
                             </div>
                         </td>
