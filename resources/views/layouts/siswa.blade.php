@@ -173,6 +173,7 @@
         }
     </style>
     @include('partials.gaya-soal')
+    @include('partials.tabel-ponsel')
     @stack('head')
 </head>
 <body>

@@ -145,7 +145,7 @@
                            class="small ms-1">tampilkan semua</a>
                     @endif
                 </span>
-                <form class="d-flex gap-2">
+                <form class="d-flex gap-2 saring-peserta">
                     <select name="status" class="form-select form-select-sm" data-kirim-otomatis aria-label="Saring status">
                         <option value="">Semua status</option>
                         @foreach (\App\Http\Controllers\MonitoringController::SARING_STATUS as $nilai => $label)
@@ -295,6 +295,15 @@
     .rincian-langgar { margin-top:.25rem; font-size:.72rem; line-height:1.35; color:var(--bs-danger-text-emphasis); }
     .rincian-langgar span { display:inline-block; white-space:nowrap; }
     .rincian-langgar span + span::before { content:'· '; color:var(--bs-secondary-color); }
+
+    /* Di ponsel, dua penyaring dan tombol jejak tidak muat satu baris:
+       penyaring berdampingan, tombol jejak turun selebar penuh. */
+    @media (max-width: 575.98px) {
+        .saring-peserta { width:100%; flex-wrap:wrap; }
+        .saring-peserta > select,
+        .saring-peserta > .select2-container { flex:1 1 9rem; min-width:0; }
+        .saring-peserta > a { flex:1 1 100%; }
+    }
 </style>
 @endpush
 

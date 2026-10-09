@@ -37,6 +37,10 @@
             <a href="{{ route('ujian.peserta.export', $ujian) }}" class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Export Daftar Hadir
             </a>
+            <a href="{{ route('kartu-peserta.index', ['ujian_id' => [$ujian->id], 'rombongan_belajar_id' => request('rombongan_belajar_id')]) }}"
+               class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-person-vcard me-1"></i>Cetak Kartu Peserta
+            </a>
             <a href="{{ route('ujian.edit', $ujian) }}" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-pencil me-1"></i>Ubah Ujian
             </a>

@@ -99,6 +99,23 @@
             .daftar-guna { display:none; }
             .panel-kanan { padding:2rem 1.5rem 3rem; }
         }
+
+        /* Ponsel: sambutan dipadatkan menjadi pita pendek. Di layar 360×640,
+           sambutan versi tablet setinggi ±360 px mendorong tombol Login ke
+           bawah layar — siswa harus menggulir dulu sebelum bisa masuk. */
+        @media (max-width: 575.98px) {
+            .panel-kiri { padding:1.1rem 1.25rem 1.35rem; }
+            .panel-kiri::before { width:16rem; height:16rem; right:-6rem; top:-8rem; }
+            .panel-kiri::after { display:none; }
+            .panel-kiri .logo { width:2.5rem; height:2.5rem; border-radius:.7rem; font-size:1.1rem; }
+            .panel-kiri .tombol-beranda { padding:.4rem .9rem; font-size:.82rem; }
+            .panel-kiri .isi { margin:1rem 0 0; }
+            .panel-kiri h1 { font-size:1.45rem; margin-bottom:.4rem; }
+            .panel-kiri p { font-size:.88rem; }
+            .panel-kanan { padding:1.5rem 1.25rem 2.5rem; place-items:start center; }
+            .kotak-form h2 { font-size:1.4rem; }
+            .kotak-form .sub { margin-bottom:1.25rem; }
+        }
     </style>
 </head>
 <body>

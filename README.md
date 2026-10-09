@@ -22,6 +22,7 @@ ini tidak pernah menulis ke sana dan satu sumber kebenaran tetap terjaga.
 | **Bank Soal** | Input 5 jenis soal (teks Arab, simbol matematika, gambar), import **Word (.docx)** & **Excel (.xlsx/.csv)** berikut gambarnya, export Excel |
 | **Pemilihan Soal Diujikan** | Paket soal: pilih butir manual atau ambil acak per tingkat kesukaran, atur urutan & bobot |
 | **Registrasi Ujian** | Jadwal, durasi, token, KKM, pengacakan, proteksi kecurangan, kelas peserta, sinkron peserta, daftar hadir |
+| **Kartu Peserta** | Cetak kartu peserta A4 (6 kartu per lembar, tiap kelas mulai halaman baru): satu kartu per siswa memuat nomor peserta, username, dan seluruh jadwal terpilih yang diikutinya. Token dan kata sandi tidak ikut tercetak |
 | **Hasil & Laporan Ujian** | Daftar Nilai (+koreksi essay), Statistik, Analisis Butir Soal, Remidial, Pengayaan — semuanya dengan export Excel |
 | **Monitoring Ujian** | Pemantauan langsung (auto-refresh 15 detik), reset peserta, kumpul paksa, buka kunci pelanggaran, jejak aktivitas |
 | **Log Login** | Riwayat percobaan masuk semua peran + export Excel |

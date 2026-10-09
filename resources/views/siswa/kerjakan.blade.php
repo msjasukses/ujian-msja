@@ -64,22 +64,23 @@
             <div class="card mb-3 kartu-soal" data-nomor="{{ $j->nomor_urut }}" data-soal="{{ $soal->id }}"
                  style="{{ $i === 0 ? '' : 'display:none' }}">
 
-                <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
-                    <span class="d-flex align-items-center gap-2">
+                {{-- Nomor dan jenis soal bertumpuk di kiri, tombol ragu-ragu di
+                     kanan: ketiganya muat dalam satu baris selebar 320 px,
+                     sehingga di ponsel kepala kartu tidak terpecah dua baris. --}}
+                <div class="card-header d-flex gap-2 justify-content-between align-items-center">
+                    <span class="d-flex align-items-center gap-2" style="min-width:0">
                         <span class="lencana-nomor">{{ $j->nomor_urut }}</span>
-                        <span class="small text-muted">dari {{ $jawaban->count() }} soal</span>
+                        <span class="d-flex flex-column align-items-start gap-1" style="min-width:0">
+                            <span class="small text-muted lh-1">dari {{ $jawaban->count() }} soal</span>
+                            <x-jenis-soal :jenis="$soal->jenis" />
+                        </span>
                     </span>
 
-                    <span class="d-flex align-items-center gap-3">
-                        <x-jenis-soal :jenis="$soal->jenis" />
-                        <div class="form-check form-switch mb-0">
-                            <input class="form-check-input tandai-ragu" type="checkbox" id="ragu-{{ $j->id }}"
-                                   data-soal="{{ $soal->id }}" @checked($j->ragu)>
-                            <label class="form-check-label small" for="ragu-{{ $j->id }}">
-                                <i class="bi bi-flag me-1"></i>Ragu-ragu
-                            </label>
-                        </div>
-                    </span>
+                    <label class="saklar-ragu form-switch {{ $j->ragu ? 'aktif' : '' }}" for="ragu-{{ $j->id }}">
+                        <input class="form-check-input tandai-ragu" type="checkbox" role="switch" id="ragu-{{ $j->id }}"
+                               data-soal="{{ $soal->id }}" @checked($j->ragu)>
+                        <i class="bi bi-flag-fill"></i>Ragu-ragu
+                    </label>
                 </div>
 
                 <div class="card-body">
@@ -314,6 +315,26 @@
     .tombol-muat-ulang.berputar .bi { animation:putar-muat-ulang .7s linear infinite; }
 
     @keyframes putar-muat-ulang { to { transform:rotate(360deg); } }
+
+    /* Tanda ragu-ragu berupa tombol pil selebar labelnya, bukan sakelar
+       kecil 2×1 rem: seluruh pil dapat diketuk, dan sasaran setinggi 2,5 rem
+       pas untuk jari di layar ponsel. */
+    .saklar-ragu {
+        display:inline-flex; align-items:center; gap:.45rem; flex:none;
+        min-height:2.5rem; margin:0; padding:.3rem .8rem .3rem .65rem;
+        border:1.5px solid var(--garis); border-radius:2rem; background:var(--kartu);
+        font-size:.85rem; font-weight:600; color:var(--teks-lembut);
+        cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
+        transition:background-color .12s, border-color .12s, color .12s;
+    }
+    .saklar-ragu.form-switch { padding-left:.65rem; }
+    .saklar-ragu.form-switch .form-check-input {
+        float:none; margin:0; width:2.1rem; height:1.15rem; cursor:pointer;
+    }
+    .saklar-ragu .bi { font-size:.8rem; }
+    .saklar-ragu:has(input:checked),
+    .saklar-ragu.aktif { background:#fff4dc; border-color:var(--kuning); color:#8a5a00; }
+    .saklar-ragu .form-check-input:checked { background-color:var(--kuning); border-color:var(--kuning); }
 
     .lencana-nomor {
         width:2rem; height:2rem; border-radius:.5rem;
@@ -616,6 +637,10 @@
             const soalId = cb.dataset.soal;
             const tanda = document.querySelector(`.nav-nomor[data-soal="${soalId}"] .tanda-ragu`);
             if (tanda) tanda.style.display = cb.checked ? '' : 'none';
+
+            // Pengganti :has() untuk WebView lama, seperti pada opsi jawaban.
+            const pil = cb.closest('.saklar-ragu');
+            if (pil) pil.classList.toggle('aktif', cb.checked);
 
             // Kirim ulang jawaban yang sekarang supaya tanda ragu ikut tersimpan.
             const gandaTerpilih = Array.from(document.querySelectorAll(`input[data-soal="${soalId}"][data-mode="ganda"]:checked`)).map(el => el.value);

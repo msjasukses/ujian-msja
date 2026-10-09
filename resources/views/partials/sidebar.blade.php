@@ -43,6 +43,10 @@
             <i class="bi bi-calendar-check me-2"></i>Registrasi Ujian
         </a>
 
+        <a class="nav-link px-3 py-2 {{ request()->routeIs('kartu-peserta.*') ? 'active' : '' }}" href="{{ route('kartu-peserta.index') }}">
+            <i class="bi bi-person-vcard me-2"></i>Kartu Peserta
+        </a>
+
         <a class="nav-link px-3 py-2 {{ request()->routeIs('monitoring.*') ? 'active' : '' }}" href="{{ route('monitoring.index') }}">
             <i class="bi bi-display me-2"></i>Monitoring Ujian
         </a>

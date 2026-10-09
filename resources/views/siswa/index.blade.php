@@ -86,7 +86,7 @@
                             <div class="d-flex flex-wrap gap-3 small text-muted">
                                 <span><i class="bi bi-journal-bookmark me-1"></i>{{ $p->ujian->mataPelajaran->nama_mapel ?? '-' }}</span>
                                 <span><i class="bi bi-stopwatch me-1"></i>{{ $p->ujian->durasi_menit }} menit</span>
-                                <span><i class="bi bi-door-closed me-1"></i>Ditutup {{ $p->ujian->waktu_selesai->format('H:i') }}</span>
+                                <span><i class="bi bi-door-closed me-1"></i>Ditutup {{ $p->ujian->ditutup_ringkas }}</span>
                             </div>
                         </div>
 
@@ -135,7 +135,7 @@
                                 <div class="small text-muted">
                                     {{ $p->ujian->mataPelajaran->nama_mapel ?? '-' }}
                                     &middot; {{ $p->ujian->waktu_mulai->format('d/m/Y H:i') }}
-                                    — {{ $p->ujian->waktu_selesai->format('H:i') }}
+                                    — {{ $p->ujian->waktu_selesai->format($p->ujian->waktu_selesai->isSameDay($p->ujian->waktu_mulai) ? 'H:i' : 'd/m/Y H:i') }}
                                 </div>
                             </div>
                         </div>

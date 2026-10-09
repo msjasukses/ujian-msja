@@ -152,6 +152,18 @@ class Ujian extends Model
         return self::STATUS[$this->status] ?? $this->status;
     }
 
+    /**
+     * Waktu ditutup yang ringkas untuk siswa: jamnya saja bila tutup hari
+     * ini, selain itu lengkap dengan tanggalnya — "Ditutup 18:21" pada ujian
+     * yang dibuka seminggu terbaca seolah tutup sore ini.
+     */
+    public function getDitutupRingkasAttribute(): string
+    {
+        return $this->waktu_selesai->isToday()
+            ? $this->waktu_selesai->format('H:i')
+            : $this->waktu_selesai->translatedFormat('j M, H:i');
+    }
+
     public function scopeAktif($query)
     {
         return $query->where('status', self::AKTIF);

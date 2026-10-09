@@ -42,13 +42,22 @@
                           letter-spacing:.03em; color:#5b6b83; font-weight:600; white-space:nowrap; }
         .stat-card .stat-value { font-size:1.6rem; font-weight:600; line-height:1.1; }
         .stat-card .stat-label { font-size:.78rem; color:#6b7a90; }
+        /* Di ponsel dan tablet kartu angka hanya selebar separuh layar; label
+           seperti "Pilihan Ganda Kompleks" boleh dua baris daripada terpotong. */
+        @media (max-width: 991.98px) { .stat-card .stat-label { white-space:normal; } }
         .badge-soft { background:#eef2f7; color:#41506a; font-weight:500; }
         .form-label { font-weight:500; font-size:.86rem; margin-bottom:.25rem; }
         .table-sticky thead th { position:sticky; top:0; z-index:2; }
         .text-wrap-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
         .soal-body img { max-width:100%; height:auto; }
+
+        /* Bootstrap tidak punya utilitas min-width. Tanpa min-width:0, anak
+           flex tidak bisa menyusut di bawah lebar teksnya: text-truncate tidak
+           bekerja dan tetangganya terdorong keluar layar. */
+        .min-width-0 { min-width:0; }
     </style>
     @include('partials.gaya-soal')
+    @include('partials.tabel-ponsel')
     @include('partials.editor-kaya')
     @stack('head')
 </head>

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportSoalController;
+use App\Http\Controllers\KartuPesertaController;
 use App\Http\Controllers\Laporan\AnalisisButirController;
 use App\Http\Controllers\Laporan\NilaiController;
 use App\Http\Controllers\Laporan\PengayaanController;
@@ -85,6 +86,9 @@ Route::middleware('pengelola')->group(function () {
     Route::patch('ujian/{ujian}/token', [UjianController::class, 'tokenBaru'])->name('ujian.token');
     Route::delete('ujian/hapus-massal', [UjianController::class, 'hapusMassal'])->name('ujian.hapus-massal');
     Route::resource('ujian', UjianController::class)->except('show');
+
+    // Cetak kartu peserta: satu kartu per siswa untuk jadwal-jadwal terpilih.
+    Route::get('kartu-peserta', [KartuPesertaController::class, 'index'])->name('kartu-peserta.index');
 
     // --- 5. Hasil & laporan ujian ---
     Route::prefix('laporan')->name('laporan.')->group(function () {

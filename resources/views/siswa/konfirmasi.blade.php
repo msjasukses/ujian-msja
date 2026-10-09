@@ -32,7 +32,7 @@
                     @foreach ([
                         ['bi-list-ol', 'Jumlah soal', $jumlahButir.' butir'],
                         ['bi-stopwatch', 'Durasi', $ujian->durasi_menit.' menit'],
-                        ['bi-door-closed', 'Ditutup pukul', $ujian->waktu_selesai->format('H:i')],
+                        ['bi-door-closed', $ujian->waktu_selesai->isToday() ? 'Ditutup pukul' : 'Ditutup', $ujian->ditutup_ringkas],
                         ['bi-flag', 'KKM', (float) $ujian->kkm],
                     ] as [$ikon, $label, $nilai])
                         <div class="col-6 col-md-3">
