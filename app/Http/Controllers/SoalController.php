@@ -7,6 +7,7 @@ use App\Models\Topik;
 use App\Services\GambarSoalService;
 use App\Services\ImportSoalExcelService;
 use App\Services\MediaSoalService;
+use App\Support\AlamatPublik;
 use App\Support\ExcelExport;
 use App\Support\Pengguna;
 use App\Support\Referensi;
@@ -133,7 +134,9 @@ class SoalController extends Controller
         );
 
         try {
-            return response()->json(['url' => $gambar->dariUnggahan($r->file('gambar'))]);
+            // Alamat siap tampil, berawalan subfolder bila ada; saat soal
+            // disimpan, Soal mengembalikannya ke bentuk netral "/storage/...".
+            return response()->json(['url' => AlamatPublik::tampil($gambar->dariUnggahan($r->file('gambar')))]);
         } catch (RuntimeException $e) {
             return response()->json(['pesan' => $e->getMessage()], 422);
         }

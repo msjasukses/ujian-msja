@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use App\Models\Concerns\MilikGuru;
+use App\Support\AlamatPublik;
 use App\Support\TeksSoal;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -78,10 +78,38 @@ class Soal extends Model
         'is_aktif' => 'boolean',
     ];
 
-    /** Alamat berkas audio/video yang menyertai butir ini, bila ada. */
+    protected static function booted(): void
+    {
+        // Gambar disisipkan editor dengan alamat bersubfolder (mis.
+        // "/cbt/storage/soal/..."); yang disimpan bentuk netralnya, supaya
+        // bank soal tetap utuh bila aplikasi dipindah alamat. Lihat AlamatPublik.
+        static::saving(function (Soal $soal) {
+            foreach (['pertanyaan', 'pembahasan'] as $kolom) {
+                if (is_string($soal->{$kolom})) {
+                    $soal->{$kolom} = AlamatPublik::htmlSimpan($soal->{$kolom});
+                }
+            }
+
+            foreach (['opsi', 'kunci'] as $kolom) {
+                if (is_array($nilai = $soal->{$kolom})) {
+                    array_walk_recursive($nilai, function (&$isi) {
+                        $isi = is_string($isi) ? AlamatPublik::htmlSimpan($isi) : $isi;
+                    });
+                    $soal->{$kolom} = $nilai;
+                }
+            }
+        });
+    }
+
+    /**
+     * Alamat berkas audio/video yang menyertai butir ini, bila ada.
+     *
+     * Disusun dari alamat yang sedang dipakai peramban, bukan dari APP_URL,
+     * sehingga tetap benar di subfolder walau APP_URL belum disesuaikan.
+     */
     public function getMediaUrlAttribute(): ?string
     {
-        return $this->media_path ? Storage::disk('public')->url($this->media_path) : null;
+        return $this->media_path ? AlamatPublik::berkas($this->media_path) : null;
     }
 
     public function getPunyaMediaAttribute(): bool

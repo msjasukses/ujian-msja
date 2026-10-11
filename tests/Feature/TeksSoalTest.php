@@ -132,9 +132,14 @@ class TeksSoalTest extends TestCase
         $luar = TeksSoal::html('<img src="https://pelacak.test/1.png" alt="a">')->toHtml();
         $skema = TeksSoal::html('<img src="javascript:alert(1)" alt="a">')->toHtml();
         $lokal = TeksSoal::html('<img src="/storage/soal/grafik.png" alt="Grafik">')->toHtml();
+        // Diawali garis miring, tetapi peramban membacanya sebagai server lain.
+        $tanpaSkema = TeksSoal::html('<img src="//pelacak.test/1.png" alt="a">')->toHtml();
+        $garisMiringBalik = TeksSoal::html('<img src="/\\pelacak.test/1.png" alt="a">')->toHtml();
 
         $this->assertStringNotContainsString('<img', $luar);
         $this->assertStringNotContainsString('<img', $skema);
+        $this->assertStringNotContainsString('<img', $tanpaSkema);
+        $this->assertStringNotContainsString('<img', $garisMiringBalik);
         $this->assertStringContainsString('/storage/soal/grafik.png', $lokal);
     }
 

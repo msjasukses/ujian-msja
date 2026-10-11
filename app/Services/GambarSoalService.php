@@ -91,11 +91,15 @@ class GambarSoalService
      * Alamat publik seluruh gambar yang dirujuk sepotong teks soal. Dipakai
      * perintah pembersih untuk mengetahui berkas mana yang masih terpakai.
      *
+     * Awalan apa pun di depan "/storage/soal/" — mis. subfolder "/cbt" yang
+     * terlanjur tersimpan — diabaikan: gambar yang masih dipakai tidak boleh
+     * sampai dihapus hanya karena alamatnya ditulis lain.
+     *
      * @return array<int, string>
      */
     public function rujukanDalam(?string $html): array
     {
-        preg_match_all('#src\s*=\s*["\'](/storage/'.self::FOLDER.'/[^"\']+)["\']#i', (string) $html, $m);
+        preg_match_all('#src\s*=\s*["\'][^"\']*?(/storage/'.self::FOLDER.'/[^"\']+)["\']#i', (string) $html, $m);
 
         return array_values(array_unique($m[1] ?? []));
     }

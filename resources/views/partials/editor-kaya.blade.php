@@ -58,6 +58,25 @@ window.EditorSoal = (function () {
     let editorAktif = null;
     let rentangTersimpan = null;
 
+    /*
+     * Awalan subfolder aplikasi, mis. "/cbt" (kosong di akar domain).
+     *
+     * Gambar tersimpan sebagai "/storage/...". Di editor ia ditampilkan
+     * dengan awalan ini — tanpanya peramban memintanya dari akar domain dan
+     * gambarnya tampil rusak — lalu dikembalikan ke bentuk netral saat isi
+     * editor disalin ke kolom formulir. Lihat App\Support\AlamatPublik.
+     */
+    const DASAR = @json(\App\Support\AlamatPublik::dasar());
+    const POLA_SIMPAN = new RegExp('(\\ssrc\\s*=\\s*["\'])' + DASAR.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/storage/', 'gi');
+
+    function alamatTampil(html) {
+        return DASAR ? html.replace(/(\ssrc\s*=\s*["'])\/storage\//gi, '$1' + DASAR + '/storage/') : html;
+    }
+
+    function alamatSimpan(html) {
+        return DASAR ? html.replace(POLA_SIMPAN, '$1/storage/') : html;
+    }
+
     // ------------------------------------------------------------------
     // Pemasangan
     // ------------------------------------------------------------------
@@ -167,7 +186,7 @@ window.EditorSoal = (function () {
             .replace(/^\s*<br\s*\/?>\s*$/i, '')
             .trim();
 
-        tujuan.value = isi;
+        tujuan.value = alamatSimpan(isi);
         editor.classList.toggle('is-invalid', false);
     }
 
@@ -176,7 +195,7 @@ window.EditorSoal = (function () {
         const teks = (nilai || '').toString();
 
         if (teks === '') return '';
-        if (/<[a-z][\s\S]*>/i.test(teks)) return saring(teks, satuBaris);
+        if (/<[a-z][\s\S]*>/i.test(teks)) return alamatTampil(saring(teks, satuBaris));
 
         return lolos(teks).replace(/\n/g, '<br>');
     }

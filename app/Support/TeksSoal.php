@@ -53,7 +53,9 @@ final class TeksSoal
      */
     public static function html(?string $teks): HtmlString
     {
-        $bersih = self::bersihkan($teks);
+        // Gambar tersimpan sebagai "/storage/..."; di sini baru diberi awalan
+        // subfolder bila aplikasi tidak dipasang di akar domain.
+        $bersih = AlamatPublik::htmlTampil(self::bersihkan($teks));
 
         // Isi yang sudah memakai tag blok mengatur jaraknya sendiri; menambah
         // <br> di sana justru menyisipkan baris kosong di antara sel tabel.
@@ -239,12 +241,15 @@ final class TeksSoal
      * Gambar hanya boleh menunjuk berkas di server ini atau data URI gambar —
      * menutup "javascript:" sekaligus alamat luar yang bisa dipakai melacak
      * siapa saja yang sedang membuka soal.
+     *
+     * "//situs-lain/x.png" dan "/\situs-lain/x.png" juga diawali garis miring,
+     * tetapi peramban membacanya sebagai alamat ke server lain.
      */
     private static function sumberGambarAman(?string $src): bool
     {
         $src = trim((string) $src);
 
-        return str_starts_with($src, '/')
+        return (bool) preg_match('#^/(?![/\\\\])#', $src)
             || str_starts_with($src, 'data:image/');
     }
 
