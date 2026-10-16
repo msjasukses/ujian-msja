@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CadanganController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportSoalController;
 use App\Http\Controllers\KartuPesertaController;
@@ -164,6 +165,14 @@ Route::middleware('pengelola')->group(function () {
 
         Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
         Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
+
+        // Cadangan & pemulihan — dibatasi lagi ke peran admin di controllernya.
+        Route::get('cadangan', [CadanganController::class, 'index'])->name('cadangan.index');
+        Route::post('cadangan', [CadanganController::class, 'buat'])->name('cadangan.buat');
+        Route::post('cadangan/unggah', [CadanganController::class, 'unggah'])->name('cadangan.unggah');
+        Route::get('cadangan/{nama}/unduh', [CadanganController::class, 'unduh'])->name('cadangan.unduh')->where('nama', '[A-Za-z0-9._-]+');
+        Route::post('cadangan/{nama}/pulihkan', [CadanganController::class, 'pulihkan'])->name('cadangan.pulihkan')->where('nama', '[A-Za-z0-9._-]+');
+        Route::delete('cadangan/{nama}', [CadanganController::class, 'hapus'])->name('cadangan.hapus')->where('nama', '[A-Za-z0-9._-]+');
     });
 });
 

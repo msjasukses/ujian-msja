@@ -111,6 +111,11 @@
             <a class="nav-link px-3 py-2 {{ request()->routeIs('pengaturan.*') ? 'active' : '' }}" href="{{ route('pengaturan.index') }}">
                 <i class="bi bi-gear me-2"></i>Pengaturan
             </a>
+            @if (Pengguna::user()?->isAdmin())
+                <a class="nav-link px-3 py-2 {{ request()->routeIs('cadangan.*') ? 'active' : '' }}" href="{{ route('cadangan.index') }}">
+                    <i class="bi bi-database-down me-2"></i>Cadangan &amp; Pemulihan
+                </a>
+            @endif
         @endif
 
         <div class="py-3"></div>
