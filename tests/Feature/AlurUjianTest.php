@@ -149,7 +149,7 @@ class AlurUjianTest extends TestCase
         $this->get('/login')->assertOk();
     }
 
-    /** Kelima jenis soal bisa disimpan lewat form input soal. */
+    /** Keenam jenis soal bisa disimpan lewat form input soal. */
     public function test_semua_jenis_soal_bisa_disimpan(): void
     {
         $this->actingAs($this->admin);
@@ -182,9 +182,36 @@ class AlurUjianTest extends TestCase
             'jodoh_kanan' => ['Tokyo', 'Seoul'],
         ])->assertRedirect();
 
-        $this->assertSame(5, Soal::count());
+        $this->post('/soal', $dasar + [
+            'jenis' => Soal::BENAR_SALAH_KOMPLEKS,
+            'bsk_pernyataan' => ['Alveolus menyerap oksigen', 'Es lebih berat daripada air', 'Diafragma membantu bernapas'],
+            'bsk_kunci' => ['benar', 'salah', 'benar'],
+        ])->assertRedirect();
+
+        $this->assertSame(6, Soal::count());
         $this->assertSame(['A', 'C'], Soal::where('jenis', Soal::PG_KOMPLEKS)->first()->kunci);
         $this->assertSame(['1' => 'A', '2' => 'B'], Soal::where('jenis', Soal::PENJODOHAN)->first()->kunci);
+
+        $bsk = Soal::where('jenis', Soal::BENAR_SALAH_KOMPLEKS)->first();
+        $this->assertSame(['1' => 'benar', '2' => 'salah', '3' => 'benar'], $bsk->kunci);
+        $this->assertSame(['1', '2', '3'], array_column($bsk->opsiPilihan(), 'key'));
+        $this->assertSame('Es lebih berat daripada air', $bsk->opsiPilihan()[1]['text']);
+    }
+
+    /** Benar/salah kompleks menolak butir yang pernyataannya kurang dari dua. */
+    public function test_benar_salah_kompleks_butuh_minimal_dua_pernyataan(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->post('/soal', [
+            'jenis' => Soal::BENAR_SALAH_KOMPLEKS,
+            'pertanyaan' => 'Uji',
+            'bobot' => 1,
+            'bsk_pernyataan' => ['Hanya satu pernyataan'],
+            'bsk_kunci' => ['benar'],
+        ])->assertSessionHasErrors('bsk_pernyataan');
+
+        $this->assertSame(0, Soal::count());
     }
 
     /** Pilihan ganda biasa menolak kunci lebih dari satu. */
@@ -232,6 +259,21 @@ class AlurUjianTest extends TestCase
         ]);
         $this->assertSame(4.0, $jodoh->koreksi(['1' => 'A', '2' => 'B'])['skor']);
         $this->assertSame(2.0, $jodoh->koreksi(['1' => 'A', '2' => 'A'])['skor']);
+
+        // Benar/salah kompleks juga parsial, dihitung per pernyataan yang tepat.
+        $bsk = Soal::create([
+            'jenis' => Soal::BENAR_SALAH_KOMPLEKS, 'pertanyaan' => 'x', 'bobot' => 4,
+            'opsi' => [['key' => '1', 'text' => 'a'], ['key' => '2', 'text' => 'b'],
+                ['key' => '3', 'text' => 'c'], ['key' => '4', 'text' => 'd']],
+            'kunci' => ['1' => 'benar', '2' => 'salah', '3' => 'benar', '4' => 'salah'],
+        ]);
+        $this->assertSame(4.0, $bsk->koreksi(['1' => 'benar', '2' => 'salah', '3' => 'benar', '4' => 'salah'])['skor']);
+        $this->assertTrue($bsk->koreksi(['1' => 'benar', '2' => 'salah', '3' => 'benar', '4' => 'salah'])['is_benar']);
+        $this->assertSame(3.0, $bsk->koreksi(['1' => 'benar', '2' => 'salah', '3' => 'benar', '4' => 'benar'])['skor']);
+        // Pernyataan yang dilewati tidak mengurangi, hanya tidak menambah.
+        $this->assertSame(2.0, $bsk->koreksi(['1' => 'benar', '3' => 'benar'])['skor']);
+        $this->assertSame(0.0, $bsk->koreksi(null)['skor']);
+        $this->assertFalse($bsk->koreksi(['1' => 'salah'])['is_benar']);
 
         $essay = Soal::create(['jenis' => Soal::ESSAY, 'pertanyaan' => 'x', 'bobot' => 5,
             'kunci' => ['jawaban' => 'y', 'kata_kunci' => []]]);

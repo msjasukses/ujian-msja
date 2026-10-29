@@ -37,7 +37,7 @@ class ContohSeederTest extends TestCase
         $this->seed(ContohSeeder::class);
     }
 
-    public function test_menghasilkan_bank_soal_lengkap_kelima_jenis(): void
+    public function test_menghasilkan_bank_soal_lengkap_semua_jenis(): void
     {
         $this->assertGreaterThanOrEqual(8, Topik::count());
         $this->assertGreaterThanOrEqual(40, Soal::count());

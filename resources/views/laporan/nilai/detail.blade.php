@@ -96,7 +96,10 @@
                         $kunci = array_map('strval', (array) ($soal->kunci ?? []));
                     @endphp
 
-                    @if ($soal?->jenis === Soal::PENJODOHAN)
+                    {{-- Penjodohan dan benar/salah kompleks sama-sama dinilai per
+                         butir, jadi keduanya ditampilkan sebagai tabel
+                         "jawaban siswa vs kunci" baris demi baris. --}}
+                    @if (in_array($soal?->jenis, [Soal::PENJODOHAN, Soal::BENAR_SALAH_KOMPLEKS], true))
                         <table class="table table-sm mb-0" style="max-width:40rem">
                             <thead><tr><th>Pernyataan</th><th>Jawaban siswa</th><th>Kunci</th></tr></thead>
                             <tbody>
@@ -108,8 +111,8 @@
                                     @endphp
                                     <tr class="{{ $siswa === $benar ? 'table-success' : ($siswa ? 'table-danger' : '') }}">
                                         <td class="small">{{ $kiri['key'] }}. <span class="opsi-teks" dir="auto">{!! TeksSoal::html($kiri['text']) !!}</span></td>
-                                        <td class="small">{{ $siswa ?: '—' }}</td>
-                                        <td class="small fw-semibold">{{ $benar }}</td>
+                                        <td class="small">{{ $siswa ? ucfirst($siswa) : '—' }}</td>
+                                        <td class="small fw-semibold">{{ ucfirst((string) $benar) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('title', $item->exists ? 'Ubah Soal' : 'Input Soal')
-@section('subtitle', 'Pilihan ganda, PG kompleks, essay, penjodohan, dan benar/salah')
+@section('subtitle', 'Pilihan ganda, PG kompleks, essay, penjodohan, benar/salah, dan benar/salah kompleks')
 
 @section('content')
 @php
@@ -17,6 +17,15 @@
     $jodohKiri = old('jodoh_kiri', collect($item->opsi['kiri'] ?? [])->pluck('text')->all()) ?: ['', ''];
     $jodohKanan = old('jodoh_kanan', collect($item->opsi['kanan'] ?? [])->pluck('text')->all()) ?: ['', ''];
     $kunciBs   = old('kunci_bs', $item->jenis === Soal::BENAR_SALAH ? ($item->kunci[0] ?? 'benar') : 'benar');
+
+    // Benar/salah kompleks: daftar pernyataan beserta kuncinya masing-masing.
+    // Keduanya memakai indeks yang sama agar tetap berpasangan, baik saat
+    // dimuat dari butir yang sudah ada maupun setelah validasi gagal.
+    $bskPernyataan = old('bsk_pernyataan', $item->jenis === Soal::BENAR_SALAH_KOMPLEKS
+        ? collect($item->opsi ?? [])->pluck('text')->all() : []);
+    $bskPernyataan = $bskPernyataan ?: ['', '', ''];
+    $bskKunci  = old('bsk_kunci', $item->jenis === Soal::BENAR_SALAH_KOMPLEKS
+        ? collect($item->opsi ?? [])->map(fn ($o) => $item->kunci[$o['key']] ?? 'benar')->all() : []);
     $kunciEssay = old('kunci_essay', $item->jenis === Soal::ESSAY ? ($item->kunci['jawaban'] ?? '') : '');
     $kataKunci = old('kata_kunci', implode(', ', $item->jenis === Soal::ESSAY ? ($item->kunci['kata_kunci'] ?? []) : []));
 @endphp
@@ -151,6 +160,57 @@
                             </div>
                         @endforeach
                     </div>
+                </div>
+            </div>
+
+            {{-- ---------- Benar / salah kompleks ---------- --}}
+            <div class="card mb-3 bagian-jenis" data-untuk="benar_salah_kompleks">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Pernyataan &amp; Kuncinya</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="tambahPernyataanBsk()">
+                        <i class="bi bi-plus-lg me-1"></i>Tambah pernyataan
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Satu butir memuat beberapa pernyataan, dan peserta menilai
+                        <strong>tiap</strong> pernyataan benar atau salah. Skornya parsial —
+                        pernyataan yang dinilai tepat tetap mendapat bagian bobotnya,
+                        jadi butir ini tidak harus tepat seluruhnya untuk berskor.
+                    </p>
+                    <div id="daftarPernyataanBsk">
+                        @foreach ($bskPernyataan as $i => $teks)
+                            {{-- Kunci dan tombol hapus turun ke barisnya sendiri di layar
+                                 sempit; dijejalkan sebaris, kolom pernyataannya tinggal
+                                 selebar satu kata. --}}
+                            <div class="baris-bsk row g-2 align-items-center mb-2">
+                                <div class="col-12 col-sm">
+                                    <div class="input-group">
+                                        <span class="input-group-text nomor-bsk" style="width:2.5rem">{{ $i + 1 }}</span>
+                                        <input name="bsk_pernyataan[{{ $i }}]" value="{{ $teks }}" class="form-control"
+                                               placeholder="Pernyataan yang dinilai benar atau salah"
+                                               dir="auto" data-sisip-target data-label-sisip="Pernyataan {{ $i + 1 }}">
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-auto d-flex gap-2 align-items-center justify-content-end">
+                                    @foreach (Soal::PILIHAN_BS as $nilai => $label)
+                                        <label class="pil-kunci-bsk">
+                                            <input class="form-check-input mt-0 kunci-bsk" type="radio"
+                                                   name="bsk_kunci[{{ $i }}]" value="{{ $nilai }}"
+                                                   @checked(($bskKunci[$i] ?? 'benar') === $nilai)>
+                                            <span>{{ $label }}</span>
+                                        </label>
+                                    @endforeach
+                                    <button type="button" class="btn btn-outline-danger" onclick="hapusPernyataanBsk(this)"
+                                            title="Hapus pernyataan">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    @error('bsk_pernyataan')<div class="text-danger small">{{ $message }}</div>@enderror
+                    @error('bsk_kunci')<div class="text-danger small">{{ $message }}</div>@enderror
                 </div>
             </div>
 
@@ -322,6 +382,27 @@
     </div>
 </form>
 
+@push('head')
+<style>
+    /* Kunci tiap pernyataan benar/salah kompleks: tombol pil, bukan radio
+       telanjang, supaya sasaran ketuknya cukup besar dan pilihan yang sedang
+       berlaku terbaca sekilas saat guru memeriksa ulang butirnya. */
+    .pil-kunci-bsk {
+        display:inline-flex; align-items:center; gap:.4rem;
+        min-height:2.4rem; margin:0; padding:.35rem .7rem;
+        border:1px solid var(--bs-border-color); border-radius:2rem;
+        font-size:.85rem; font-weight:500; color:var(--bs-secondary-color);
+        cursor:pointer; user-select:none; white-space:nowrap;
+        transition:border-color .12s, background-color .12s, color .12s;
+    }
+    .pil-kunci-bsk:hover { border-color:var(--bs-primary-border-subtle); }
+    .pil-kunci-bsk:has(input:checked) {
+        border-color:var(--bs-primary); background:var(--bs-primary-bg-subtle); color:var(--bs-primary);
+    }
+    .pil-kunci-bsk .form-check-input { flex:none; }
+</style>
+@endpush
+
 @push('scripts')
 <script>
     // Menampilkan hanya bagian form yang relevan dengan jenis soal terpilih,
@@ -398,6 +479,70 @@
         }
         tombol.closest('.baris-opsi').remove();
         nomoriUlangOpsi();
+    }
+
+    /*
+     * Pernyataan benar/salah kompleks dinomori ulang tiap kali barisnya
+     * berubah. Nomornya bukan hiasan: ia juga indeks yang memasangkan kolom
+     * pernyataan dengan kolom kuncinya saat formulir dikirim, sehingga
+     * menghapus baris di tengah tidak menggeser kunci baris di bawahnya.
+     *
+     * Radionya dibungkus <label> sendiri, jadi tidak perlu pasangan id/for
+     * yang ikut dinomori ulang — satu sumber kekeliruan lebih sedikit.
+     */
+    function nomoriUlangBsk() {
+        document.querySelectorAll('#daftarPernyataanBsk .baris-bsk').forEach(function (baris, i) {
+            baris.querySelector('.nomor-bsk').textContent = i + 1;
+            baris.querySelector('input[name^="bsk_pernyataan"]').name = `bsk_pernyataan[${i}]`;
+            baris.querySelectorAll('.kunci-bsk').forEach(function (radio) {
+                radio.name = `bsk_kunci[${i}]`;
+            });
+        });
+    }
+
+    function tambahPernyataanBsk() {
+        const daftar = document.getElementById('daftarPernyataanBsk');
+        if (daftar.children.length >= 10) return;
+
+        const i = daftar.children.length;
+        const baris = document.createElement('div');
+        baris.className = 'baris-bsk row g-2 align-items-center mb-2';
+        baris.innerHTML = `
+            <div class="col-12 col-sm">
+                <div class="input-group">
+                    <span class="input-group-text nomor-bsk" style="width:2.5rem">${i + 1}</span>
+                    <input name="bsk_pernyataan[${i}]" class="form-control"
+                           placeholder="Pernyataan yang dinilai benar atau salah"
+                           dir="auto" data-sisip-target data-label-sisip="Pernyataan ${i + 1}">
+                </div>
+            </div>
+            <div class="col-12 col-sm-auto d-flex gap-2 align-items-center justify-content-end">
+                <label class="pil-kunci-bsk">
+                    <input class="form-check-input mt-0 kunci-bsk" type="radio" name="bsk_kunci[${i}]" value="benar" checked>
+                    <span>Benar</span>
+                </label>
+                <label class="pil-kunci-bsk">
+                    <input class="form-check-input mt-0 kunci-bsk" type="radio" name="bsk_kunci[${i}]" value="salah">
+                    <span>Salah</span>
+                </label>
+                <button type="button" class="btn btn-outline-danger" onclick="hapusPernyataanBsk(this)"
+                        title="Hapus pernyataan">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>`;
+        daftar.appendChild(baris);
+        window.EditorSoal?.pasangSemua(baris);
+        nomoriUlangBsk();
+    }
+
+    function hapusPernyataanBsk(tombol) {
+        const daftar = document.getElementById('daftarPernyataanBsk');
+        if (daftar.children.length <= 2) {
+            alert('Soal benar/salah kompleks minimal punya 2 pernyataan.');
+            return;
+        }
+        tombol.closest('.baris-bsk').remove();
+        nomoriUlangBsk();
     }
 
     function nomoriUlangJodoh() {

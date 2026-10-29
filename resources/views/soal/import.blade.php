@@ -74,6 +74,8 @@
                                     <td class="small text-muted" style="min-width:12rem">
                                         @if ($s['jenis'] === 'penjodohan')
                                             {{ collect($s['opsi']['kiri'] ?? [])->pluck('text')->implode(' / ') }}
+                                        @elseif ($s['jenis'] === 'benar_salah_kompleks')
+                                            {{ collect($s['opsi'])->map(fn ($o) => $o['key'].'. '.Str::limit($o['text'], 40))->implode(' | ') }}
                                         @elseif (is_array($s['opsi']))
                                             {{ collect($s['opsi'])->map(fn ($o) => $o['key'].'. '.Str::limit($o['text'], 25))->implode(' | ') }}
                                         @else
@@ -86,6 +88,8 @@
                                         @elseif ($s['jenis'] === 'penjodohan')
                                             {{-- Kurung kurawal wajib: tanpa itu "→" terserap menjadi bagian nama variabel. --}}
                                             {{ collect($s['kunci'])->map(fn ($v, $k) => "{$k}→{$v}")->implode(', ') }}
+                                        @elseif ($s['jenis'] === 'benar_salah_kompleks')
+                                            {{ collect($s['kunci'])->map(fn ($v, $k) => $k.'='.($v === 'benar' ? 'B' : 'S'))->implode(', ') }}
                                         @else
                                             <strong>{{ implode(', ', (array) $s['kunci']) }}</strong>
                                         @endif
@@ -216,6 +220,11 @@ PEMBAHASAN: Bandung ibu kota Jabar.</pre>
                         <li>Tanpa opsi + kunci <code>benar</code>/<code>salah</code> jadi soal <strong>benar salah</strong>.</li>
                         <li>Tanpa opsi + kunci berupa kalimat jadi soal <strong>essay</strong>.</li>
                         <li>Baris <code>Jepang ## Tokyo</code> membentuk soal <strong>penjodohan</strong>.</li>
+                        <li>
+                            Baris <code>Oksigen diserap di alveolus ## benar</code> &mdash; sisi kanannya hanya
+                            <code>benar</code> atau <code>salah</code> &mdash; membentuk soal
+                            <strong>benar salah kompleks</strong>.
+                        </li>
                         <li>Untuk memaksa jenis, tambahkan baris <code>JENIS: essay</code>.</li>
                         <li>
                             <strong>Gambar</strong> yang tertanam di naskah ikut terbawa. Gambar menempel pada
@@ -237,7 +246,7 @@ PEMBAHASAN: Bandung ibu kota Jabar.</pre>
                 <div class="card-body small">
                     <p class="mb-2">Satu baris = satu butir, dengan urutan kolom:</p>
                     <ol class="mb-2 ps-3">
-                        <li><code>jenis</code> — pg / pg_kompleks / essay / penjodohan / benar_salah</li>
+                        <li><code>jenis</code> — pg / pg_kompleks / essay / penjodohan / benar_salah / benar_salah_kompleks</li>
                         <li><code>pertanyaan</code></li>
                         <li>–7. <code>opsi_a</code> … <code>opsi_e</code></li>
                         <li class="list-unstyled">8. <code>kunci</code></li>
@@ -248,6 +257,11 @@ PEMBAHASAN: Bandung ibu kota Jabar.</pre>
                         <li>PG kompleks: kunci ditulis <code>A,C</code>.</li>
                         <li>Essay: kunci = jawaban model, kata kunci ditulis di <code>opsi_a</code>.</li>
                         <li>Penjodohan: tiap opsi ditulis <code>pernyataan ## jodohnya</code>, kunci dikosongkan.</li>
+                        <li>
+                            Benar salah kompleks: tiap opsi ditulis
+                            <code>pernyataan ## benar</code> atau <code>pernyataan ## salah</code>,
+                            kunci dikosongkan.
+                        </li>
                         <li>
                             <strong>Gambar</strong> yang ditempel di lembar kerja ikut terbawa, mengikuti sel
                             tempatnya diletakkan: gambar di kolom <code>pertanyaan</code> menjadi bagian

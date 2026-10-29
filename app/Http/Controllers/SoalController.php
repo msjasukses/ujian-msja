@@ -170,6 +170,14 @@ class SoalController extends Controller
                 $kunci = $s->kunci['jawaban'] ?? '';
             } elseif ($s->jenis === Soal::BENAR_SALAH) {
                 $kunci = $s->kunci[0] ?? '';
+            } elseif ($s->jenis === Soal::BENAR_SALAH_KOMPLEKS) {
+                // Bentuknya sama dengan penjodohan, "isi ## pasangannya",
+                // hanya saja pasangannya berupa benar/salah.
+                foreach ($s->opsiPilihan() as $i => $pernyataan) {
+                    $opsi[$i] = TeksSoal::polos($pernyataan['text']).' ## '
+                        .($s->kunci[$pernyataan['key']] ?? '');
+                }
+                $kunci = '';
             } else {
                 foreach ($s->opsiPilihan() as $i => $o) {
                     $opsi[$i] = $o['text'];
@@ -280,6 +288,45 @@ class SoalController extends Controller
             $r->validate(['kunci_bs' => 'required|in:benar,salah']);
 
             return [null, [$r->input('kunci_bs')]];
+        }
+
+        if ($jenis === Soal::BENAR_SALAH_KOMPLEKS) {
+            $r->validate([
+                'bsk_pernyataan' => 'required|array|min:2',
+                'bsk_pernyataan.*' => 'required|string|max:1000',
+                'bsk_kunci' => 'required|array|min:2',
+                'bsk_kunci.*' => 'required|in:'.implode(',', array_keys(Soal::PILIHAN_BS)),
+            ], [], [
+                'bsk_pernyataan' => 'Pernyataan',
+                'bsk_kunci' => 'Kunci tiap pernyataan',
+            ]);
+
+            // Nama kolomnya bernomor (bsk_pernyataan[0], bsk_kunci[0]) supaya
+            // pernyataan dan kuncinya tetap berpasangan walau baris di
+            // tengahnya dihapus di formulir. Yang dipakai hanya pernyataan
+            // yang kuncinya ikut terkirim.
+            $pernyataan = (array) $r->input('bsk_pernyataan');
+            $kunciInput = (array) $r->input('bsk_kunci');
+
+            $opsi = $kunci = [];
+
+            foreach ($pernyataan as $i => $teks) {
+                if (! isset($kunciInput[$i])) {
+                    continue;
+                }
+
+                $nomor = (string) (count($opsi) + 1);
+                $opsi[] = ['key' => $nomor, 'text' => trim((string) $teks)];
+                $kunci[$nomor] = $kunciInput[$i];
+            }
+
+            if (count($opsi) < 2) {
+                throw ValidationException::withMessages([
+                    'bsk_pernyataan' => 'Soal benar/salah kompleks minimal punya 2 pernyataan.',
+                ]);
+            }
+
+            return [$opsi, $kunci];
         }
 
         if ($jenis === Soal::ESSAY) {

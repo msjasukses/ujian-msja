@@ -16,7 +16,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *
  * Format satu baris = satu butir soal, dengan kolom:
  *
- *   A jenis              pg | pg_kompleks | essay | penjodohan | benar_salah
+ *   A jenis              pg | pg_kompleks | essay | penjodohan | benar_salah |
+ *                        benar_salah_kompleks
  *   B pertanyaan         teks soal
  *   C..G opsi_a..opsi_e  isi pilihan jawaban
  *   H kunci              lihat aturan per jenis di bawah
@@ -29,6 +30,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   pg           opsi_a..e diisi, kunci satu huruf, mis. "C"
  *   pg_kompleks  opsi_a..e diisi, kunci beberapa huruf, mis. "A,C,D"
  *   benar_salah  opsi dikosongkan, kunci "benar" atau "salah"
+ *   benar_salah_kompleks
+ *                tiap opsi berisi satu pernyataan beserta kuncinya, ditulis
+ *                "pernyataan ## benar" atau "pernyataan ## salah". Kolom
+ *                kunci dibiarkan kosong.
  *   essay        opsi dikosongkan, kunci = jawaban model.
  *                Kata kunci penilaian boleh ditulis di opsi_a, pisahkan koma.
  *   penjodohan   tiap opsi berisi pasangan "pernyataan ## jodohnya",
@@ -43,7 +48,11 @@ class ImportSoalExcelService
         'kunci', 'bobot', 'level_kognitif', 'tingkat_kesukaran', 'pembahasan',
     ];
 
-    /** Pemisah antara pernyataan kiri dan pasangan kanan pada soal penjodohan. */
+    /**
+     * Pemisah antara pernyataan kiri dan pasangan kanan pada soal penjodohan,
+     * dipakai juga untuk memisahkan pernyataan dari kuncinya pada soal
+     * benar/salah kompleks.
+     */
     protected const PEMISAH_JODOH = '##';
 
     public function __construct(protected GambarSoalService $gambar) {}
@@ -239,6 +248,33 @@ class ImportSoalExcelService
             return [null, [$k]];
         }
 
+        if ($jenis === Soal::BENAR_SALAH_KOMPLEKS) {
+            $opsi = [];
+            $kunci = [];
+
+            foreach ($opsiMentah as $i => $baris) {
+                if (! str_contains($baris, self::PEMISAH_JODOH)) {
+                    throw new \InvalidArgumentException(
+                        'soal benar/salah kompleks harus ditulis "pernyataan '
+                        .self::PEMISAH_JODOH.' benar" atau "pernyataan '.self::PEMISAH_JODOH.' salah".'
+                    );
+                }
+
+                [$pernyataan, $nilai] = array_map('trim', explode(self::PEMISAH_JODOH, $baris, 2));
+                $nilai = strtolower($nilai);
+                $nomor = (string) ($i + 1);
+
+                $opsi[] = ['key' => $nomor, 'text' => RumusLatex::keHtml($pernyataan)];
+                $kunci[$nomor] = in_array($nilai, ['benar', 'b', 'true', 'ya', '1'], true) ? 'benar' : 'salah';
+            }
+
+            if (count($opsi) < 2) {
+                throw new \InvalidArgumentException('soal benar/salah kompleks minimal 2 pernyataan.');
+            }
+
+            return [$opsi, $kunci];
+        }
+
         if ($jenis === Soal::ESSAY) {
             if ($kunciMentah === '') {
                 throw new \InvalidArgumentException('soal essay wajib mengisi kunci (jawaban model).');
@@ -329,6 +365,10 @@ class ImportSoalExcelService
             'menjodohkan' => Soal::PENJODOHAN,
             'benar_salah' => Soal::BENAR_SALAH,
             'bs' => Soal::BENAR_SALAH,
+            'benar_salah_kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
+            'benar_salah_komplek' => Soal::BENAR_SALAH_KOMPLEKS,
+            'bs_kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
+            'bsk' => Soal::BENAR_SALAH_KOMPLEKS,
         ];
 
         if (! isset($alias[$j])) {
@@ -391,6 +431,14 @@ class ImportSoalExcelService
                 'Jepang ## Tokyo', 'Korea Selatan ## Seoul', 'Thailand ## Bangkok', 'Vietnam ## Hanoi', '',
                 '', 4, 'C1', 'mudah', '',
             ],
+            [
+                'benar_salah_kompleks', 'Tentukan benar atau salah setiap pernyataan tentang pernapasan manusia berikut!',
+                'Oksigen diserap di alveolus ## benar',
+                'Udara masuk melalui kerongkongan ## salah',
+                'Diafragma membantu proses pernapasan ## benar',
+                'Karbon dioksida dikeluarkan saat menghirup ## salah', '',
+                '', 4, 'C3', 'sedang', 'Kerongkongan adalah saluran makanan; saluran udara adalah tenggorokan.',
+            ],
         ];
 
         return ExcelExport::make('Template Soal')
@@ -405,7 +453,8 @@ class ImportSoalExcelService
                 ['4. benar_salah -> kosongkan opsi, isi kunci dengan "benar" atau "salah".'],
                 ['5. essay -> kosongkan opsi, kunci diisi jawaban model. Kata kunci penilaian boleh ditulis di opsi_a, dipisah koma.'],
                 ['6. penjodohan -> tiap opsi ditulis "pernyataan '.self::PEMISAH_JODOH.' jodohnya", kolom kunci dikosongkan.'],
-                ['7. Topik, mata pelajaran dan tingkat kelas dipilih sekali di form import, tidak perlu ditulis per baris.'],
+                ['7. benar_salah_kompleks -> tiap opsi ditulis "pernyataan '.self::PEMISAH_JODOH.' benar" atau "pernyataan '.self::PEMISAH_JODOH.' salah", kolom kunci dikosongkan.'],
+                ['8. Topik, mata pelajaran dan tingkat kelas dipilih sekali di form import, tidak perlu ditulis per baris.'],
             ])
             ->unduh('template-import-soal.xlsx');
     }

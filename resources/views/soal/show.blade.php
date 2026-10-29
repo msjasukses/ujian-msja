@@ -41,6 +41,20 @@
                         </div>
                         @break
 
+                    @case (Soal::BENAR_SALAH_KOMPLEKS)
+                        @foreach ($item->opsiPilihan() as $pernyataan)
+                            @php $kunci = strtolower((string) ($item->kunci[$pernyataan['key']] ?? '')); @endphp
+                            <div class="border rounded p-2 mb-2 d-flex gap-2 align-items-start
+                                        {{ $kunci === 'benar' ? 'border-success bg-success-subtle' : 'border-secondary-subtle' }}">
+                                <strong style="min-width:1.75rem">{{ $pernyataan['key'] }}.</strong>
+                                <span class="flex-grow-1 opsi-teks" dir="auto">{!! TeksSoal::html($pernyataan['text']) !!}</span>
+                                <span class="badge {{ $kunci === 'benar' ? 'text-bg-success' : 'text-bg-secondary' }}">
+                                    {{ Soal::PILIHAN_BS[$kunci] ?? '-' }}
+                                </span>
+                            </div>
+                        @endforeach
+                        @break
+
                     @case (Soal::ESSAY)
                         <div class="border rounded p-3 bg-light-subtle">
                             <div class="small text-muted mb-1">Jawaban model</div>

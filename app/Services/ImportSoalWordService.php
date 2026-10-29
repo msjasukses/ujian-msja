@@ -30,6 +30,7 @@ use PhpOffice\PhpWord\IOFactory;
  *   - tanpa opsi, kunci "benar"/"salah"       -> benar salah
  *   - tanpa opsi, kunci berupa kalimat        -> essay
  *   - baris "pernyataan ## jodohnya"          -> penjodohan
+ *   - baris "pernyataan ## benar/salah"       -> benar salah kompleks
  *
  * Bila tebakan itu perlu dipaksa, tulis baris "JENIS: essay" (atau jenis
  * lain) tepat setelah nomor soal.
@@ -372,6 +373,9 @@ class ImportSoalWordService
                 'essay' => Soal::ESSAY, 'esai' => Soal::ESSAY, 'uraian' => Soal::ESSAY,
                 'penjodohan' => Soal::PENJODOHAN, 'menjodohkan' => Soal::PENJODOHAN,
                 'benar salah' => Soal::BENAR_SALAH, 'benar_salah' => Soal::BENAR_SALAH,
+                'benar salah kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
+                'benar_salah_kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
+                'bs kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
             ];
             $kunci = strtolower(trim($blok['jenis_paksa']));
             if (! isset($alias[$kunci])) {
@@ -382,13 +386,21 @@ class ImportSoalWordService
         }
 
         if ($blok['jodoh'] !== []) {
-            return Soal::PENJODOHAN;
+            // Baris "pernyataan ## jodohnya" melayani dua jenis soal. Bila
+            // seluruh sisi kanannya hanya berisi benar/salah, yang dimaksud
+            // penulis naskah adalah benar/salah kompleks — pasangan seperti
+            // itu tidak masuk akal sebagai soal penjodohan, karena kolom
+            // kanannya cuma punya dua isi yang berulang.
+            $semuaBenarSalah = collect($blok['jodoh'])
+                ->every(fn ($p) => $this->nilaiBenarSalah($p['kanan']) !== null);
+
+            return $semuaBenarSalah ? Soal::BENAR_SALAH_KOMPLEKS : Soal::PENJODOHAN;
         }
 
         $kunciMentah = strtolower(trim((string) $blok['kunci']));
 
         if ($blok['opsi'] === []) {
-            return in_array($kunciMentah, ['benar', 'salah', 'b', 's', 'true', 'false'], true)
+            return $this->nilaiBenarSalah($kunciMentah) !== null
                 ? Soal::BENAR_SALAH
                 : Soal::ESSAY;
         }
@@ -403,6 +415,22 @@ class ImportSoalWordService
     }
 
     /**
+     * Baca tulisan kunci benar/salah apa adanya dari naskah: "Benar", "b",
+     * "SALAH", "false", dan seterusnya. Mengembalikan null bila teksnya bukan
+     * salah satu dari keduanya — dipakai juga untuk menebak jenis soal.
+     */
+    protected function nilaiBenarSalah(string $teks): ?string
+    {
+        $t = strtolower(trim($teks));
+
+        return match (true) {
+            in_array($t, ['benar', 'b', 'true'], true) => 'benar',
+            in_array($t, ['salah', 's', 'false'], true) => 'salah',
+            default => null,
+        };
+    }
+
+    /**
      * @param  array<string, mixed>  $blok
      * @return array{0: array|null, 1: array}
      */
@@ -411,9 +439,34 @@ class ImportSoalWordService
         $kunciMentah = trim((string) $blok['kunci']);
 
         if ($jenis === Soal::BENAR_SALAH) {
-            $k = strtolower($kunciMentah);
+            return [null, [$this->nilaiBenarSalah($kunciMentah) ?? 'salah']];
+        }
 
-            return [null, [in_array($k, ['benar', 'b', 'true'], true) ? 'benar' : 'salah']];
+        if ($jenis === Soal::BENAR_SALAH_KOMPLEKS) {
+            if (count($blok['jodoh']) < 2) {
+                throw new \InvalidArgumentException(
+                    'soal benar/salah kompleks minimal 2 pernyataan, tiap baris ditulis '
+                    .'"pernyataan '.self::PEMISAH_JODOH.' benar" atau "pernyataan '.self::PEMISAH_JODOH.' salah".'
+                );
+            }
+
+            $opsi = $kunci = [];
+
+            foreach (array_values($blok['jodoh']) as $i => $pernyataan) {
+                $nilai = $this->nilaiBenarSalah($pernyataan['kanan']);
+
+                if ($nilai === null) {
+                    throw new \InvalidArgumentException(
+                        'kunci pernyataan "'.TeksSoal::polos($pernyataan['kiri']).'" harus "benar" atau "salah".'
+                    );
+                }
+
+                $nomor = (string) ($i + 1);
+                $opsi[] = ['key' => $nomor, 'text' => RumusLatex::keHtml($pernyataan['kiri'])];
+                $kunci[$nomor] = $nilai;
+            }
+
+            return [$opsi, $kunci];
         }
 
         if ($jenis === Soal::ESSAY) {

@@ -28,12 +28,21 @@ return [
     |
     |     UJIAN_PENANDA_EXAMBRO="ExamBro,SEB/"
     |
+    | Penanda aplikasi ponsel peserta selalu ikut, tidak peduli apa yang
+    | disetel sekolah. Aplikasi itu sendiri adalah peramban ujian — layarnya
+    | terkunci, pelanggarannya dilaporkan ke server lewat API yang sama — jadi
+    | menolaknya karena "bukan ExamBro" justru menutup pintu bagi klien yang
+    | paling terkendali. Penanda ini dikirimnya pada user agent setiap
+    | permintaan; lihat PENANDA_APLIKASI di sisi aplikasi.
+    |
     */
 
-    'penanda_exambro' => array_values(array_filter(array_map(
-        'trim',
-        explode(',', (string) env('UJIAN_PENANDA_EXAMBRO', ''))
-    ))),
+    'penanda_aplikasi' => 'CBTSiswa',
+
+    'penanda_exambro' => array_values(array_unique(array_filter(array_merge(
+        ['CBTSiswa'],
+        array_map('trim', explode(',', (string) env('UJIAN_PENANDA_EXAMBRO', '')))
+    )))),
 
     /*
     |--------------------------------------------------------------------------

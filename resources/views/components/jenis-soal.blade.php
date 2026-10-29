@@ -2,11 +2,12 @@
 
 @php
     $peta = [
-        'pg'          => ['Pilihan Ganda',   'primary'],
-        'pg_kompleks' => ['PG Kompleks',     'info'],
-        'essay'       => ['Essay',           'warning'],
-        'penjodohan'  => ['Penjodohan',      'success'],
-        'benar_salah' => ['Benar / Salah',   'secondary'],
+        'pg'                   => ['Pilihan Ganda', 'primary'],
+        'pg_kompleks'          => ['PG Kompleks',   'info'],
+        'essay'                => ['Essay',         'warning'],
+        'penjodohan'           => ['Penjodohan',    'success'],
+        'benar_salah'          => ['Benar / Salah', 'secondary'],
+        'benar_salah_kompleks' => ['BS Kompleks',   'dark'],
     ];
     [$label, $warna] = $peta[$jenis] ?? [$jenis, 'secondary'];
 @endphp

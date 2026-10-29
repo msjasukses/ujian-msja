@@ -10,6 +10,7 @@ use App\Models\Ujian;
 use App\Models\UjianLog;
 use App\Models\UjianPeserta;
 use App\Models\User;
+use App\Services\PengawasanUjianService;
 use App\Services\PengerjaanUjianService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -324,8 +325,10 @@ class ProteksiUjianTest extends TestCase
         $this->ujian->update(['maks_pelanggaran' => 0]);
         $this->actingAs($this->siswa, 'siswa');
 
-        for ($i = 0; $i < 6; $i++) {
-            $this->lapor('layar_terbelah')->assertJson(['terkunci' => false]);
+        $this->lapor('layar_terbelah')->assertJson(['terkunci' => false]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->laporLagi('layar_terbelah')->assertJson(['terkunci' => false]);
         }
 
         $this->assertSame(6, $this->peserta->fresh()->pelanggaran);
@@ -370,8 +373,8 @@ class ProteksiUjianTest extends TestCase
             ->assertOk()
             ->assertJson(['pelanggaran' => 1, 'sisa' => 2]);
 
-        $this->lapor('keluar_aplikasi')->assertJson(['pelanggaran' => 2]);
-        $this->lapor('keluar_aplikasi')->assertJson(['pelanggaran' => 3, 'terkunci' => true]);
+        $this->laporLagi('keluar_aplikasi')->assertJson(['pelanggaran' => 2]);
+        $this->laporLagi('keluar_aplikasi')->assertJson(['pelanggaran' => 3, 'terkunci' => true]);
 
         $this->assertNotNull($this->peserta->fresh()->dikunci_at);
     }
@@ -758,6 +761,22 @@ class ProteksiUjianTest extends TestCase
             'jenis' => $jenis,
             'keterangan' => $keterangan,
         ]));
+    }
+
+    /**
+     * Pelanggaran sejenis berikutnya, dari perbuatan yang berbeda.
+     *
+     * Laporan sejenis yang beruntun dianggap kembaran dari satu perbuatan dan
+     * hanya dihitung sekali (PengawasanUjianService::JEDA_ULANG_DETIK), jadi
+     * perbuatan kedua perlu benar-benar terpisah waktunya — sebagaimana di
+     * ruang ujian sungguhan, di mana siswa tidak bisa keluar dua kali dalam
+     * satu kedipan.
+     */
+    private function laporLagi(string $jenis, ?string $keterangan = null)
+    {
+        $this->travel(PengawasanUjianService::JEDA_ULANG_DETIK + 1)->seconds();
+
+        return $this->lapor($jenis, $keterangan);
     }
 
     private function admin(): User

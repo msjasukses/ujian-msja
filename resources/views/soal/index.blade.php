@@ -6,11 +6,11 @@
 @php use App\Models\Soal; use App\Support\TeksSoal; use App\Support\Referensi; $pakaiJurusan = Referensi::pakaiJurusan(); @endphp
 
 <div class="row g-2 mb-3">
-    <div class="col-6 col-lg-2"><x-stat label="Total butir" :value="$total" icon="bi-journal-text" /></div>
+    <div class="col-6 col-lg-3"><x-stat label="Total butir" :value="$total" icon="bi-journal-text" /></div>
     @foreach (Soal::JENIS as $jenis => $label)
-        <div class="col-6 col-lg-2">
+        <div class="col-6 col-lg-3">
             <x-stat :label="$label" :value="$stat[$jenis] ?? 0" icon="bi-dot"
-                    :warna="['pg'=>'primary','pg_kompleks'=>'info','essay'=>'warning','penjodohan'=>'success','benar_salah'=>'secondary'][$jenis]" />
+                    :warna="['pg'=>'primary','pg_kompleks'=>'info','essay'=>'warning','penjodohan'=>'success','benar_salah'=>'secondary','benar_salah_kompleks'=>'dark'][$jenis]" />
         </div>
     @endforeach
 </div>

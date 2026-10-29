@@ -112,7 +112,7 @@
                                 <div class="border rounded p-2 bg-success-subtle small">
                                     {!! TeksSoal::html($soal->kunci['jawaban'] ?? '-') !!}
                                 </div>
-                            @elseif ($soal->jenis === Soal::PENJODOHAN)
+                            @elseif (in_array($soal->jenis, [Soal::PENJODOHAN, Soal::BENAR_SALAH_KOMPLEKS], true))
                                 <table class="table table-sm mb-0">
                                     <thead><tr><th>Pernyataan</th><th>Jawaban Anda</th><th>Kunci</th></tr></thead>
                                     <tbody>
@@ -123,8 +123,8 @@
                                             @endphp
                                             <tr class="{{ $siswa === $benar ? 'table-success' : ($siswa ? 'table-danger' : '') }}">
                                                 <td class="small">{{ $kiri['key'] }}. <span class="opsi-teks" dir="auto">{!! TeksSoal::html($kiri['text']) !!}</span></td>
-                                                <td class="small">{{ $siswa ?: '—' }}</td>
-                                                <td class="small fw-semibold">{{ $benar }}</td>
+                                                <td class="small">{{ $siswa ? ucfirst($siswa) : '—' }}</td>
+                                                <td class="small fw-semibold">{{ ucfirst((string) $benar) }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>

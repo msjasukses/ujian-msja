@@ -198,6 +198,15 @@ class ImportSoalController extends Controller
             'Thailand ## Bangkok',
             'Vietnam ## Hanoi',
             'BOBOT: 4',
+            '',
+            '6. Tentukan benar atau salah setiap pernyataan tentang pernapasan manusia berikut!',
+            'JENIS: benar salah kompleks',
+            'Oksigen diserap di alveolus ## benar',
+            'Udara masuk melalui kerongkongan ## salah',
+            'Diafragma membantu proses pernapasan ## benar',
+            'Karbon dioksida dikeluarkan saat menghirup ## salah',
+            'BOBOT: 4',
+            'PEMBAHASAN: Kerongkongan adalah saluran makanan; saluran udara adalah tenggorokan.',
         ];
 
         foreach ($baris as $teks) {

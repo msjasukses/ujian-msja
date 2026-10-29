@@ -33,6 +33,8 @@ class Soal extends Model
 
     public const BENAR_SALAH = 'benar_salah';
 
+    public const BENAR_SALAH_KOMPLEKS = 'benar_salah_kompleks';
+
     /** @var array<string, string> */
     public const JENIS = [
         self::PG => 'Pilihan Ganda',
@@ -40,6 +42,19 @@ class Soal extends Model
         self::ESSAY => 'Essay / Uraian',
         self::PENJODOHAN => 'Penjodohan',
         self::BENAR_SALAH => 'Benar / Salah',
+        self::BENAR_SALAH_KOMPLEKS => 'Benar / Salah Kompleks',
+    ];
+
+    /**
+     * Dua nilai yang boleh dipilih pada soal benar/salah maupun benar/salah
+     * kompleks. Dikumpulkan di sini supaya formulir input, lembar ujian dan
+     * koreksi memakai tulisan yang sama persis.
+     *
+     * @var array<string, string>
+     */
+    public const PILIHAN_BS = [
+        'benar' => 'Benar',
+        'salah' => 'Salah',
     ];
 
     /** @var array<string, string> */
@@ -166,17 +181,17 @@ class Soal extends Model
     /**
      * Daftar opsi jawaban siap tampil. Untuk penjodohan yang dikembalikan
      * adalah kolom kiri (pernyataan), sedangkan kolom kanan diambil lewat
-     * opsiKanan().
+     * opsiKanan(). Untuk benar/salah kompleks yang dikembalikan adalah daftar
+     * pernyataan yang harus dinilai benar atau salah satu per satu.
      *
      * @return array<int, array{key:string, text:string}>
      */
     public function opsiPilihan(): array
     {
         if ($this->jenis === self::BENAR_SALAH) {
-            return [
-                ['key' => 'benar', 'text' => 'Benar'],
-                ['key' => 'salah', 'text' => 'Salah'],
-            ];
+            return collect(self::PILIHAN_BS)
+                ->map(fn ($label, $nilai) => ['key' => $nilai, 'text' => $label])
+                ->values()->all();
         }
 
         if ($this->jenis === self::PENJODOHAN) {
@@ -244,8 +259,11 @@ class Soal extends Model
                 ];
             })(),
 
-            // Penjodohan dinilai per pasangan yang tepat.
-            self::PENJODOHAN => (function () use ($jawaban, $kunci, $bobot, $kosong) {
+            // Penjodohan dan benar/salah kompleks sama-sama berkunci
+            // asosiatif "butir => jawaban benar", jadi keduanya dinilai per
+            // butir yang tepat: tiap pasangan pada penjodohan, tiap pernyataan
+            // pada benar/salah kompleks.
+            self::PENJODOHAN, self::BENAR_SALAH_KOMPLEKS => (function () use ($jawaban, $kunci, $bobot, $kosong) {
                 if ($kosong || ! is_array($jawaban) || count($kunci) === 0) {
                     return ['is_benar' => false, 'skor' => 0.0];
                 }
@@ -282,6 +300,11 @@ class Soal extends Model
             // sebagai satu variabel yang tidak pernah ada.
             self::PENJODOHAN => collect($kunci)->map(fn ($v, $k) => "{$k}→{$v}")->implode(', '),
             self::BENAR_SALAH => ucfirst((string) ($kunci[0] ?? '-')),
+            // Diringkas menjadi "1=B, 2=S" supaya satu baris tabel tetap muat
+            // walau pernyataannya banyak.
+            self::BENAR_SALAH_KOMPLEKS => collect($kunci)
+                ->map(fn ($v, $k) => $k.'='.(strcasecmp((string) $v, 'benar') === 0 ? 'B' : 'S'))
+                ->implode(', '),
             default => implode(', ', (array) $kunci),
         };
     }

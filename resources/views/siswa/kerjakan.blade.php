@@ -49,7 +49,7 @@
                 // Urutan opsi dikunci saat peserta memulai; bila ada, opsi
                 // ditampilkan menurut urutan itu agar konsisten tiap refresh.
                 $opsi = collect($soal->opsiPilihan());
-                if ($j->urutan_opsi && in_array($soal->jenis, [Soal::PG, Soal::PG_KOMPLEKS], true)) {
+                if ($j->urutan_opsi && in_array($soal->jenis, [Soal::PG, Soal::PG_KOMPLEKS, Soal::BENAR_SALAH_KOMPLEKS], true)) {
                     $peta = $opsi->keyBy('key');
                     $opsi = collect($j->urutan_opsi)->map(fn ($k) => $peta[$k] ?? null)->filter()->values();
                 }
@@ -122,6 +122,34 @@
                                     </div>
                                 @endforeach
                             </div>
+                            @break
+
+                        {{-- ----- Benar / salah kompleks ----- --}}
+                        @case (Soal::BENAR_SALAH_KOMPLEKS)
+                            @php $nilaiBsk = (array) ($j->jawaban ?? []); @endphp
+
+                            <div class="petunjuk-soal mb-3">
+                                <i class="bi bi-ui-checks me-1"></i>Nilai <strong>setiap</strong> pernyataan di bawah: benar atau salah.
+                            </div>
+
+                            @foreach ($opsi as $p)
+                                <div class="baris-pernyataan d-flex flex-wrap gap-2 align-items-center mb-2">
+                                    <span class="opsi-huruf">{{ $p['key'] }}</span>
+                                    <span class="flex-grow-1 opsi-teks" dir="auto" style="min-width:8rem">{!! TeksSoal::html($p['text']) !!}</span>
+
+                                    <div class="d-flex gap-2 flex-shrink-0">
+                                        @foreach (Soal::PILIHAN_BS as $nilai => $label)
+                                            <label class="pilih-bsk">
+                                                <input class="form-check-input mt-0 bsk-pilih" type="radio"
+                                                       name="soal-{{ $soal->id }}-{{ $p['key'] }}" value="{{ $nilai }}"
+                                                       data-soal="{{ $soal->id }}" data-pernyataan="{{ $p['key'] }}"
+                                                       @checked(($nilaiBsk[$p['key']] ?? null) === $nilai)>
+                                                <span>{{ $label }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endforeach
                             @break
 
                         {{-- ----- Pilihan ganda kompleks ----- --}}
@@ -347,10 +375,33 @@
         border-radius:.6rem; padding:.55rem .85rem; font-size:.85rem;
     }
 
-    .baris-jodoh {
+    .baris-jodoh,
+    .baris-pernyataan {
         border:1.5px solid var(--garis); border-radius:.7rem;
         padding:.6rem .75rem; background:var(--kartu);
     }
+
+    /* Benar/salah kompleks: tiap pernyataan punya sepasang tombol pil
+       sendiri. Tingginya dijaga 2,4rem supaya tetap nyaman diketuk di layar
+       ponsel, dan keadaan terpilih ditandai dua kali — lewat :has() dan lewat
+       kelas .opsi-terpilih dari JavaScript — dengan alasan yang sama seperti
+       pada .opsi-label di tata letak siswa: :has() belum dikenal peramban
+       lama yang masih banyak dipakai di komputer sekolah. */
+    .pilih-bsk {
+        display:inline-flex; align-items:center; gap:.4rem;
+        min-height:2.4rem; margin:0; padding:.35rem .7rem;
+        border:1.5px solid var(--garis); border-radius:2rem; background:var(--kartu);
+        font-size:.85rem; font-weight:600; color:var(--teks-lembut);
+        cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
+        transition:border-color .12s, background-color .12s, color .12s;
+    }
+    .pilih-bsk .form-check-input { width:1.05rem; height:1.05rem; flex:none; }
+    .pilih-bsk:hover { border-color:#b9cbe4; }
+    .pilih-bsk:has(input:checked),
+    .pilih-bsk.opsi-terpilih {
+        border-color:var(--hijau); background:var(--hijau-lembut); color:#0a6b47;
+    }
+    .pilih-bsk .form-check-input:checked { background-color:var(--hijau); border-color:var(--hijau); }
     .daftar-pasangan {
         border:1px dashed #c9d6e6; border-radius:.7rem;
         padding:.9rem; background:#f8fbff; height:100%;
@@ -549,7 +600,7 @@
      * di tengah ujian — mahal untuk hal sesepele gaya.
      */
     function segarkanPilihan() {
-        document.querySelectorAll('.opsi-label').forEach(function (label) {
+        document.querySelectorAll('.opsi-label, .pilih-bsk').forEach(function (label) {
             label.classList.toggle('opsi-terpilih', !!label.querySelector('input:checked'));
         });
     }
@@ -564,6 +615,24 @@
             const nilai = input.dataset.mode === 'ganda'
                 ? Array.from(document.querySelectorAll(`input[data-soal="${soalId}"][data-mode="ganda"]:checked`)).map(el => el.value)
                 : input.value;
+
+            simpan(soalId, nilai, ragudariSoal(soalId));
+        });
+    });
+
+    // Benar/salah kompleks — tiap pernyataan satu kelompok radio tersendiri,
+    // dan yang dikirim selalu seluruh pernyataan yang sudah dinilai, bukan
+    // hanya yang baru diketuk.
+    document.querySelectorAll('.bsk-pilih').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            const soalId = radio.dataset.soal;
+
+            segarkanPilihan();
+
+            const nilai = {};
+            document.querySelectorAll(`.bsk-pilih[data-soal="${soalId}"]:checked`).forEach(function (r) {
+                nilai[r.dataset.pernyataan] = r.value;
+            });
 
             simpan(soalId, nilai, ragudariSoal(soalId));
         });

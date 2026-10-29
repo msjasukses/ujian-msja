@@ -54,6 +54,21 @@ class PengawasanUjianService
     public const BERAT = ['jendela_popup', 'layar_mengambang'];
 
     /**
+     * Jarak waktu minimal antara dua laporan sejenis dari satu peserta.
+     *
+     * Satu perbuatan kerap melahirkan beberapa laporan sekaligus: Android
+     * mengirim beberapa perubahan daur hidup untuk sekali berpindah aplikasi,
+     * dan peramban memicu blur hampir bersamaan dengan visibilitychange.
+     * Laporan kembar yang lahir dari satu perbuatan itu dicatat sekali saja.
+     *
+     * Akibatnya siswa yang benar-benar melanggar dua kali dalam lima detik
+     * hanya terhitung sekali. Itu disengaja: terlalu sedikit menghitung hanya
+     * memberi satu kesempatan lagi, sedangkan terlalu banyak menghitung
+     * mengunci lembar siswa yang tidak bersalah di tengah ujian.
+     */
+    public const JEDA_ULANG_DETIK = 5;
+
+    /**
      * Jenis kejadian yang membuat seorang siswa terhitung "melanggar" di menu
      * Monitoring: pelanggaran yang memang dihitung sistem. Percobaan menyalin
      * tidak, dan kejadian "dikunci" bukan perbuatan siswa.
@@ -79,6 +94,10 @@ class PengawasanUjianService
 
         abort_unless(array_key_exists($jenis, UjianLog::EVENT)
             && in_array($jenis, UjianLog::PELANGGARAN, true), 422, 'Jenis pelanggaran tidak dikenal.');
+
+        if ($this->kembar($peserta, $jenis)) {
+            return $this->keadaan($peserta);
+        }
 
         UjianLog::catat($ujian->id, $peserta->id, $jenis, $keterangan);
 
@@ -108,6 +127,22 @@ class PengawasanUjianService
         }
 
         return $this->keadaan($peserta->refresh());
+    }
+
+    /**
+     * Laporan ini kembaran dari laporan sejenis yang baru saja masuk.
+     *
+     * Dibandingkan dengan jejak ujian, bukan dengan kolom di peserta, supaya
+     * jenis yang berbeda tetap terhitung sendiri-sendiri: siswa yang membelah
+     * layar lalu berpindah aplikasi pada detik yang sama memang melakukan dua
+     * hal.
+     */
+    protected function kembar(UjianPeserta $peserta, string $jenis): bool
+    {
+        return UjianLog::where('ujian_peserta_id', $peserta->id)
+            ->where('event', $jenis)
+            ->where('created_at', '>=', now()->subSeconds(self::JEDA_ULANG_DETIK))
+            ->exists();
     }
 
     /** Pengawas membuka kembali lembar yang terkunci; hitungannya dinolkan. */

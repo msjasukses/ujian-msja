@@ -154,7 +154,10 @@ class PengerjaanUjianService
         }
 
         return match ($soal->jenis) {
-            Soal::PG, Soal::PG_KOMPLEKS => collect($soal->opsiPilihan())
+            // Pada benar/salah kompleks yang diacak adalah urutan tampil
+            // pernyataannya; kunci tiap pernyataan ikut menempel pada
+            // nomornya, jadi pengacakan tidak mengubah koreksi.
+            Soal::PG, Soal::PG_KOMPLEKS, Soal::BENAR_SALAH_KOMPLEKS => collect($soal->opsiPilihan())
                 ->pluck('key')->shuffle()->values()->all(),
             Soal::PENJODOHAN => collect($soal->opsiKanan())
                 ->pluck('key')->shuffle()->values()->all(),
@@ -217,6 +220,23 @@ class PengerjaanUjianService
                 $v = array_filter((array) $jawaban, fn ($x) => $x !== '' && $x !== null);
 
                 return $v === [] ? null : array_map('strval', $v);
+            })(),
+
+            // Benar/salah kompleks: satu nilai per pernyataan, dan yang
+            // diterima hanya "benar" atau "salah". Nilai lain dibuang supaya
+            // pernyataan itu terhitung belum dinilai, bukan dinilai keliru.
+            Soal::BENAR_SALAH_KOMPLEKS => (function () use ($jawaban) {
+                $v = [];
+
+                foreach ((array) $jawaban as $pernyataan => $nilai) {
+                    $nilai = strtolower((string) $nilai);
+
+                    if (isset(Soal::PILIHAN_BS[$nilai])) {
+                        $v[(string) $pernyataan] = $nilai;
+                    }
+                }
+
+                return $v === [] ? null : $v;
             })(),
 
             default => $jawaban,

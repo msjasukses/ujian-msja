@@ -56,7 +56,9 @@ return new class extends Migration
             $table->unsignedBigInteger('mata_pelajaran_id')->nullable()->index();
             $table->unsignedBigInteger('tingkat_kelas_id')->nullable()->index();
             $table->string('tahun_ajaran', 30)->nullable();
-            // pg | pg_kompleks | essay | penjodohan | benar_salah
+            // pg | pg_kompleks | essay | penjodohan | benar_salah |
+            // benar_salah_kompleks (lihat migration add_jenis_benar_salah_kompleks,
+            // yang melebarkan kolom ini menjadi 30 karakter)
             $table->string('jenis', 20)->index();
             $table->longText('pertanyaan');
             $table->string('gambar')->nullable();
@@ -66,6 +68,8 @@ return new class extends Migration
              *                     kunci = ["A"]  atau  ["A","C"]
              *  benar_salah      : opsi  = null
              *                     kunci = ["benar"] atau ["salah"]
+             *  benar_salah_kompleks : opsi  = [{"key":"1","text":"pernyataan"}, ...]
+             *                     kunci = {"1":"benar","2":"salah"}
              *  penjodohan       : opsi  = {"kiri":[{"key":"1","text":"..."}],
              *                              "kanan":[{"key":"A","text":"..."}]}
              *                     kunci = {"1":"A","2":"C"}
@@ -185,6 +189,7 @@ return new class extends Migration
             // Bentuk jawaban mengikuti jenis soal, disimpan JSON:
             //  pg/benar_salah -> ["A"] ; pg_kompleks -> ["A","C"]
             //  penjodohan     -> {"1":"A","2":"C"} ; essay -> {"teks":"..."}
+            //  benar_salah_kompleks -> {"1":"benar","2":"salah"}
             $table->json('jawaban')->nullable();
             // urutan opsi hasil pengacakan supaya tampilan konsisten saat refresh
             $table->json('urutan_opsi')->nullable();

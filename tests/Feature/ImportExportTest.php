@@ -192,7 +192,7 @@ class ImportExportTest extends TestCase
         $this->assertStringContainsString('class="pecahan"', $soal->opsi[2]['text']);
     }
 
-    /** Naskah Word dengan kelima jenis soal terbaca dengan benar. */
+    /** Naskah Word dengan keenam jenis soal terbaca dengan benar. */
     public function test_parser_word_mengenali_semua_jenis_soal(): void
     {
         $baris = [
@@ -217,14 +217,19 @@ class ImportExportTest extends TestCase
             'Jepang ## Tokyo',
             'Korea Selatan ## Seoul',
             'Thailand ## Bangkok',
+
+            '6. Tentukan benar atau salah tiap pernyataan!',
+            'Air mendidih pada 100 derajat Celsius ## benar',
+            'Es lebih berat daripada air ## salah',
+            'Oksigen diserap di alveolus ## benar',
         ];
 
         $hasil = app(ImportSoalWordService::class)->baca($this->berkasWord($baris));
 
         $this->assertSame([], $hasil['galat']);
-        $this->assertCount(5, $hasil['soal']);
+        $this->assertCount(6, $hasil['soal']);
 
-        [$pg, $pgk, $bs, $essay, $jodoh] = $hasil['soal'];
+        [$pg, $pgk, $bs, $essay, $jodoh, $bsk] = $hasil['soal'];
 
         $this->assertSame(Soal::PG, $pg['jenis']);
         $this->assertSame(['A'], $pg['kunci']);
@@ -247,6 +252,12 @@ class ImportExportTest extends TestCase
         $this->assertSame(Soal::PENJODOHAN, $jodoh['jenis']);
         $this->assertSame(['1' => 'A', '2' => 'B', '3' => 'C'], $jodoh['kunci']);
         $this->assertSame('Tokyo', $jodoh['opsi']['kanan'][0]['text']);
+
+        // Pasangan "## benar/salah" dibedakan dari penjodohan tanpa perlu
+        // baris JENIS, karena sisi kanannya hanya berisi benar atau salah.
+        $this->assertSame(Soal::BENAR_SALAH_KOMPLEKS, $bsk['jenis']);
+        $this->assertSame(['1' => 'benar', '2' => 'salah', '3' => 'benar'], $bsk['kunci']);
+        $this->assertSame('Es lebih berat daripada air', $bsk['opsi'][1]['text']);
     }
 
     /** Soal Word tanpa baris kunci dilaporkan sebagai galat, bukan disimpan diam-diam. */
@@ -297,14 +308,16 @@ class ImportExportTest extends TestCase
             ['benar_salah', 'Air mendidih 100 C.', '', '', '', '', '', 'benar', 1, '', '', ''],
             ['essay', 'Jelaskan hujan!', 'evaporasi, kondensasi', '', '', '', '', 'Uraian model', 5, 'C4', 'sedang', ''],
             ['penjodohan', 'Jodohkan!', 'Jepang ## Tokyo', 'Korea ## Seoul', '', '', '', '', 4, '', '', ''],
+            ['benar_salah_kompleks', 'Benar atau salah?', 'Alveolus menyerap oksigen ## benar',
+                'Es lebih berat daripada air ## salah', 'Diafragma membantu bernapas ## benar', '', '', '', 3, 'C3', 'sedang', ''],
         ];
 
         $hasil = app(ImportSoalExcelService::class)->baca($this->berkasExcel($baris));
 
         $this->assertSame([], $hasil['galat']);
-        $this->assertCount(5, $hasil['soal']);
+        $this->assertCount(6, $hasil['soal']);
 
-        [$pg, $pgk, $bs, $essay, $jodoh] = $hasil['soal'];
+        [$pg, $pgk, $bs, $essay, $jodoh, $bsk] = $hasil['soal'];
 
         $this->assertSame(['A'], $pg['kunci']);
         $this->assertSame(['A', 'C'], $pgk['kunci']);
@@ -312,6 +325,10 @@ class ImportExportTest extends TestCase
         $this->assertSame(['evaporasi', 'kondensasi'], $essay['kunci']['kata_kunci']);
         $this->assertSame(['1' => 'A', '2' => 'B'], $jodoh['kunci']);
         $this->assertSame('Seoul', $jodoh['opsi']['kanan'][1]['text']);
+
+        $this->assertSame(Soal::BENAR_SALAH_KOMPLEKS, $bsk['jenis']);
+        $this->assertSame(['1' => 'benar', '2' => 'salah', '3' => 'benar'], $bsk['kunci']);
+        $this->assertSame('Diafragma membantu bernapas', $bsk['opsi'][2]['text']);
     }
 
     /** Baris Excel yang cacat dilaporkan per nomor baris, sisanya tetap terbaca. */
@@ -343,8 +360,14 @@ class ImportExportTest extends TestCase
 
         $hasil = app(ImportSoalExcelService::class)->baca($tmp);
 
-        // Lima contoh butir terbaca; blok petunjuk di bawahnya diabaikan sebagai galat.
-        $this->assertCount(5, $hasil['soal']);
+        // Template memuat satu contoh untuk tiap jenis soal; blok petunjuk di
+        // bawahnya diabaikan sebagai galat. Urutan barisnya tidak diikat agar
+        // contoh boleh disusun ulang tanpa memecahkan pemeriksaan ini.
+        $this->assertCount(count(Soal::JENIS), $hasil['soal']);
+        $this->assertEqualsCanonicalizing(
+            array_keys(Soal::JENIS),
+            array_column($hasil['soal'], 'jenis')
+        );
         @unlink($tmp);
     }
 
@@ -359,10 +382,18 @@ class ImportExportTest extends TestCase
         $hasil = app(ImportSoalWordService::class)->baca($tmp);
 
         $this->assertSame([], $hasil['galat']);
-        $this->assertCount(5, $hasil['soal']);
+        $this->assertCount(6, $hasil['soal']);
         $this->assertSame(
-            [Soal::PG, Soal::PG_KOMPLEKS, Soal::BENAR_SALAH, Soal::ESSAY, Soal::PENJODOHAN],
+            [Soal::PG, Soal::PG_KOMPLEKS, Soal::BENAR_SALAH, Soal::ESSAY, Soal::PENJODOHAN, Soal::BENAR_SALAH_KOMPLEKS],
             array_column($hasil['soal'], 'jenis')
+        );
+
+        // Pernyataan beserta kuncinya ikut terbaca dari baris "## benar/salah".
+        $bsk = $hasil['soal'][5];
+        $this->assertCount(4, $bsk['opsi']);
+        $this->assertSame(
+            ['1' => 'benar', '2' => 'salah', '3' => 'benar', '4' => 'salah'],
+            $bsk['kunci']
         );
         @unlink($tmp);
     }

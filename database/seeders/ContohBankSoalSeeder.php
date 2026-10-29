@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Contoh topik dan bank soal untuk keperluan uji coba.
  *
- * Isinya materi Kelas 7 SMP pada empat mata pelajaran, memuat kelima jenis
+ * Isinya materi Kelas 7 SMP pada empat mata pelajaran, memuat keenam jenis
  * soal yang didukung aplikasi. Mata pelajaran, tingkat kelas dan guru pengampu
  * dicari berdasarkan namanya di database Data Center — jadi seeder ini
  * menyesuaikan diri dengan id yang ada di sana, bukan menuliskannya keras.
@@ -102,6 +102,15 @@ class ContohBankSoalSeeder extends Seeder
 
         $this->benarSalah('Setiap bilangan bulat negatif selalu lebih kecil daripada nol.',
             'benar', 1, 'C1', 'mudah');
+
+        $this->benarSalahKompleks('Tentukan benar atau salah setiap pernyataan tentang bilangan bulat berikut!', [
+            'Hasil dari (-9) + 4 adalah -5' => 'benar',
+            'Setiap bilangan bulat negatif lebih besar daripada nol' => 'salah',
+            'Hasil dari (-5) × (-4) adalah -20' => 'salah',
+            'Nilai |-11| sama dengan 11' => 'benar',
+        ], 4, 'C3', 'sedang',
+            '(-5) × (-4) = 20 karena perkalian dua bilangan negatif menghasilkan bilangan positif, '.
+            'dan bilangan negatif selalu lebih kecil daripada nol.');
 
         $this->penjodohan('Jodohkan operasi berikut dengan hasilnya!', [
             '(-4) + (-9)' => '-13',
@@ -414,6 +423,15 @@ class ContohBankSoalSeeder extends Seeder
             ['A', 'B', 'D'], 3, 'C4', 'sukar',
             'Perubahan kimia bersifat tetap dan menghasilkan zat baru, ditandai gas, perubahan warna, endapan, atau perubahan suhu.');
 
+        $this->benarSalahKompleks('Tentukan benar atau salah setiap pernyataan tentang perubahan zat berikut!', [
+            'Kertas yang dibakar mengalami perubahan kimia' => 'benar',
+            'Gula yang larut dalam air membentuk zat baru' => 'salah',
+            'Menyublim adalah perubahan wujud dari padat menjadi gas' => 'benar',
+            'Semua perubahan yang disertai perubahan warna adalah perubahan fisika' => 'salah',
+        ], 4, 'C4', 'sukar',
+            'Gula larut hanya menyebar di antara molekul air tanpa membentuk zat baru, '.
+            'sedangkan perubahan warna justru salah satu penanda perubahan kimia.');
+
         $this->essay('Jelaskan perbedaan perubahan fisika dan perubahan kimia, lalu berikan masing-masing dua contoh '.
             'peristiwa yang kamu temui sehari-hari!',
             'Perubahan fisika tidak menghasilkan zat baru dan umumnya dapat kembali ke wujud semula, '.
@@ -602,6 +620,32 @@ class ContohBankSoalSeeder extends Seeder
         ?string $pembahasan = null,
     ): Soal {
         return $this->simpan(Soal::BENAR_SALAH, $pernyataan, null, [$kunci],
+            $bobot, $level, $kesukaran, $pembahasan);
+    }
+
+    /**
+     * Benar/salah kompleks: beberapa pernyataan dalam satu butir, tiap
+     * pernyataan dinilai sendiri.
+     *
+     * @param  array<string, string>  $pernyataan  teks pernyataan => 'benar'|'salah'
+     */
+    protected function benarSalahKompleks(
+        string $pertanyaan,
+        array $pernyataan,
+        float $bobot = 4,
+        ?string $level = null,
+        ?string $kesukaran = null,
+        ?string $pembahasan = null,
+    ): Soal {
+        $opsi = $kunci = [];
+
+        foreach (array_values($pernyataan) as $i => $nilai) {
+            $nomor = (string) ($i + 1);
+            $opsi[] = ['key' => $nomor, 'text' => array_keys($pernyataan)[$i]];
+            $kunci[$nomor] = $nilai;
+        }
+
+        return $this->simpan(Soal::BENAR_SALAH_KOMPLEKS, $pertanyaan, $opsi, $kunci,
             $bobot, $level, $kesukaran, $pembahasan);
     }
 

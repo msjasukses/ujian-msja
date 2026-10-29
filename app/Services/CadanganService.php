@@ -61,10 +61,17 @@ class CadanganService
         'tindak_lanjut', 'login_attempts',
     ];
 
-    /** Tabel kerangka Laravel dan keadaan sesaat — sengaja tidak dicadangkan. */
+    /**
+     * Tabel kerangka Laravel dan keadaan sesaat — sengaja tidak dicadangkan.
+     *
+     * Penanda masuk ikut di sini, baik sesi peramban maupun token aplikasi
+     * ponsel: keduanya terikat pada satu perangkat dan satu waktu. Memulihkan
+     * cadangan lama berarti menghidupkan kembali penanda yang sudah dicabut,
+     * dan itu justru melubangi aturan satu akun satu perangkat.
+     */
     public const TIDAK_DICADANGKAN = [
         'migrations', 'cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs',
-        'sessions', 'password_reset_tokens', 'sesi_siswa',
+        'sessions', 'password_reset_tokens', 'sesi_siswa', 'siswa_api_token',
     ];
 
     /**

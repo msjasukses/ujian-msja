@@ -424,6 +424,8 @@ class ContohUjianSeeder extends Seeder
 
             Soal::PENJODOHAN => $this->jawabanPenjodohan($soal, $peluang),
 
+            Soal::BENAR_SALAH_KOMPLEKS => $this->jawabanBenarSalahKompleks($soal, $peluang),
+
             Soal::ESSAY => ['teks' => $this->teksEssay($soal, $peluang)],
 
             default => null,
@@ -473,6 +475,25 @@ class ContohUjianSeeder extends Seeder
         }
 
         return array_values(array_unique($jawaban));
+    }
+
+    /**
+     * Benar/salah kompleks dijawab pernyataan demi pernyataan: yang tidak
+     * dikuasai siswa berbalik ke nilai sebaliknya, bukan dibiarkan kosong.
+     *
+     * @return array<string, string>
+     */
+    protected function jawabanBenarSalahKompleks(Soal $soal, float $peluang): array
+    {
+        $jawaban = [];
+
+        foreach ((array) $soal->kunci as $pernyataan => $benar) {
+            $jawaban[(string) $pernyataan] = $this->undi($peluang)
+                ? $benar
+                : ($benar === 'benar' ? 'salah' : 'benar');
+        }
+
+        return $jawaban;
     }
 
     /** @return array<string, string> */

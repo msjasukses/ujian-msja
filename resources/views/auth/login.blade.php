@@ -139,7 +139,7 @@
             <p>Bank soal, pelaksanaan ujian, sampai laporan nilai dalam satu sistem terpadu.</p>
 
             <ul class="daftar-guna">
-                <li><i class="bi bi-journal-text"></i><span>Bank soal lima jenis, lengkap dengan rumus, teks Arab, dan gambar</span></li>
+                <li><i class="bi bi-journal-text"></i><span>Bank soal enam jenis, lengkap dengan rumus, teks Arab, dan gambar</span></li>
                 <li><i class="bi bi-display"></i><span>Ujian dikerjakan langsung di layar, jawaban tersimpan otomatis</span></li>
                 <li><i class="bi bi-graph-up"></i><span>Nilai, statistik, dan analisis butir soal keluar seketika</span></li>
             </ul>
