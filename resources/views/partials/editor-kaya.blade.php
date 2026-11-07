@@ -800,6 +800,29 @@ window.EditorSoal = (function () {
         return sisipHtml(lolos(teks));
     }
 
+    /**
+     * Isi sebuah kolom beserta editornya sekaligus — dipakai template soal
+     * yang menuangkan satu butir utuh ke formulir.
+     *
+     * Mengisi kolomnya saja tidak cukup: yang dilihat dan disunting guru
+     * adalah editor di sebelahnya, dan isi editor itulah yang menimpa kolom
+     * pada penyuntingan berikutnya. Tanpa baris kedua di bawah, isian yang
+     * baru dituang akan lenyap begitu guru mengetik satu huruf.
+     */
+    function setel(kolom, nilai) {
+        if (!kolom) return false;
+
+        kolom.value = nilai ?? '';
+
+        const editor = kolom.nextElementSibling;
+
+        if (editor?.classList.contains('editor-kaya')) {
+            editor.innerHTML = keHtml(kolom.value, kolom.tagName !== 'TEXTAREA');
+        }
+
+        return true;
+    }
+
     /** Perintah bawaan peramban: bold, italic, underline, superscript, subscript. */
     function perintah(nama) {
         if (!aktif()) return false;
@@ -951,7 +974,7 @@ window.EditorSoal = (function () {
     });
 
     return { pasang, pasangSemua, pasangUlang: pasangSemua, aktif, fokuskan,
-             sisipHtml, sisipTeks, bungkus, perintah, sisipDenganKursor,
+             sisipHtml, sisipTeks, setel, bungkus, perintah, sisipDenganKursor,
              ubahLatexTerpilih };
 })();
 </script>

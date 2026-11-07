@@ -26,6 +26,9 @@
             <a href="{{ route('soal.export', request()->query()) }}" class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
             </a>
+            <a href="{{ route('soal.create', ['template' => 'daftar']) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-grid-1x2 me-1"></i>Template Soal
+            </a>
             <a href="{{ route('soal.create') }}" class="btn btn-sm btn-primary">
                 <i class="bi bi-plus-lg me-1"></i>Input Soal
             </a>

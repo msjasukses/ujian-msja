@@ -19,6 +19,7 @@ use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\ReferensiController as Ref;
 use App\Http\Controllers\Siswa\UjianSiswaController;
 use App\Http\Controllers\SoalController;
+use App\Http\Controllers\TemplateSoalController;
 use App\Http\Controllers\TopikController;
 use App\Http\Controllers\UjianController;
 use Illuminate\Support\Facades\Route;
@@ -62,6 +63,7 @@ Route::middleware('pengelola')->group(function () {
     Route::get('soal/import/template-excel', [ImportSoalController::class, 'templateExcel'])->name('soal.import.template-excel');
     Route::get('soal/import/template-word', [ImportSoalController::class, 'templateWord'])->name('soal.import.template-word');
     Route::post('soal/gambar', [SoalController::class, 'unggahGambar'])->name('soal.gambar');
+    Route::post('soal/template/rakit', [TemplateSoalController::class, 'rakit'])->name('soal.template.rakit');
     Route::get('soal/export', [SoalController::class, 'export'])->name('soal.export');
     Route::patch('soal/{soal}/toggle', [SoalController::class, 'toggle'])->name('soal.toggle');
     Route::delete('soal/hapus-massal', [SoalController::class, 'hapusMassal'])->name('soal.hapus-massal');

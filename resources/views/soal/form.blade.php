@@ -56,7 +56,15 @@
             </div>
 
             <div class="card mb-3">
-                <div class="card-header">Pertanyaan</div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Pertanyaan</span>
+                    {{-- Template merakit teks, gambar, opsi, dan kuncinya sekaligus;
+                         semuanya masih bisa disunting di formulir ini setelahnya. --}}
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            data-bs-toggle="modal" data-bs-target="#modalTemplate">
+                        <i class="bi bi-grid-1x2 me-1"></i>Ambil dari template
+                    </button>
+                </div>
                 <div class="card-body">
                     <textarea name="pertanyaan" rows="5" required dir="auto"
                               data-sisip-target data-label-sisip="Pertanyaan"
@@ -381,6 +389,8 @@
         </div>
     </div>
 </form>
+
+@include('soal.partials.template-soal')
 
 @push('head')
 <style>
