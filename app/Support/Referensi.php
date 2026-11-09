@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Guru;
 use App\Models\GuruMapel;
 use App\Models\Jurusan;
+use App\Models\KelasMoving;
 use App\Models\MataPelajaran;
 use App\Models\Pengaturan;
 use App\Models\RombonganBelajar;
@@ -276,6 +277,116 @@ class Referensi
                 ->orderBy('tingkat')->orderBy('nama_rombel')
                 ->get();
         });
+    }
+
+    /**
+     * Rombel yang mengambil sebuah mata pelajaran pada tahun ajaran aktif,
+     * menurut penugasan mengajar di Data Center (tabel guru_mapel).
+     *
+     * Dipakai untuk mengerucutkan pilihan kelas dan kandidat peserta menurut
+     * mapel paket soal yang dipilih: pada sekolah dengan kelas moving, tidak
+     * semua rombel mengambil mapel yang sama.
+     *
+     * Bila penugasan mapel itu belum terisi di Data Center, daftarnya
+     * dikembalikan utuh — mengikuti pola Referensi::mapel(), lebih baik guru
+     * melihat semua kelas daripada tidak bisa mendaftarkan peserta sama
+     * sekali. Penyaring $guruId tetap dihormati bila diisi.
+     *
+     * @return Collection<int, RombonganBelajar>
+     */
+    public static function rombelMapel(?int $mapelId, ?int $guruId = null): Collection
+    {
+        $semua = static::rombel($guruId);
+
+        if (! $mapelId) {
+            return $semua;
+        }
+
+        $ids = static::kelasPengambilMapel($mapelId);
+
+        return $ids->isEmpty()
+            ? $semua
+            : $semua->whereIn('id', $ids->all())->values();
+    }
+
+    /**
+     * Id rombel yang mengambil sebuah mapel menurut guru_mapel. Kosong berarti
+     * penugasan mapel itu memang belum ada di Data Center.
+     *
+     * @return Collection<int, int>
+     */
+    public static function kelasPengambilMapel(int $mapelId): Collection
+    {
+        return static::ingat('kelas-mapel:'.$mapelId, function () use ($mapelId) {
+            $tahunAjaranId = static::tahunAjaranAktif()?->id;
+
+            $ids = GuruMapel::where('mata_pelajaran_id', $mapelId)
+                ->whereNotNull('rombongan_belajar_id')
+                ->when($tahunAjaranId, fn ($q) => $q->where('tahun_ajaran_id', $tahunAjaranId))
+                ->pluck('rombongan_belajar_id')
+                ->map('intval')
+                ->unique();
+
+            // Penugasan tahun ajaran aktif kosong: coba tanpa batas tahun
+            // sebelum menyerah dan menampilkan seluruh rombel.
+            if ($ids->isEmpty() && $tahunAjaranId) {
+                $ids = GuruMapel::where('mata_pelajaran_id', $mapelId)
+                    ->whereNotNull('rombongan_belajar_id')
+                    ->pluck('rombongan_belajar_id')
+                    ->map('intval')
+                    ->unique();
+            }
+
+            return $ids->values();
+        });
+    }
+
+    /**
+     * Kelas moving aktif untuk sebuah mata pelajaran pada tahun ajaran aktif,
+     * lengkap dengan anggotanya. Inilah rombongan peserta sebenarnya pada
+     * sekolah yang memakai kelas moving: siswanya lintas rombel dan sudah
+     * dipilih di Data Center.
+     *
+     * @return Collection<int, KelasMoving>
+     */
+    public static function kelasMoving(?int $mapelId): Collection
+    {
+        if (! $mapelId) {
+            return collect();
+        }
+
+        return static::ingat('kelas-moving:'.$mapelId, function () use ($mapelId) {
+            $tahunAjaranId = static::tahunAjaranAktif()?->id;
+
+            return KelasMoving::aktif()
+                ->with('anggota')
+                ->where('mata_pelajaran_id', $mapelId)
+                ->when($tahunAjaranId, fn ($q) => $q->where('tahun_ajaran_id', $tahunAjaranId))
+                ->orderBy('nama_kelas_moving')
+                ->get();
+        });
+    }
+
+    /** Daftar kelas tidak bisa dikerucutkan karena paketnya belum punya mapel. */
+    public const TANPA_MAPEL = 'tanpa_mapel';
+
+    /** Mapelnya ada, tapi Data Center belum mencatat kelas mana yang mengambilnya. */
+    public const TANPA_PENUGASAN = 'tanpa_penugasan';
+
+    /**
+     * Mengapa daftar kelas tidak mengerucut menurut mapel — null bila memang
+     * mengerucut. Dipakai supaya guru tahu sebabnya saat seluruh kelas tetap
+     * tampil, alih-alih menduga aplikasinya yang keliru.
+     */
+    public static function alasanKelasTidakMengerucut(?int $mapelId): ?string
+    {
+        if (! $mapelId) {
+            return static::TANPA_MAPEL;
+        }
+
+        return static::kelasPengambilMapel($mapelId)->isEmpty()
+            ? static::TANPA_PENUGASAN
+            : null;
     }
 
     /** @return Collection<int, Guru> */

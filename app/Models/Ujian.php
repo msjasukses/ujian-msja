@@ -29,6 +29,18 @@ class Ujian extends Model
         self::SELESAI => 'Selesai',
     ];
 
+    /** Peserta ditarik utuh dari kelas yang dipilih. */
+    public const MODE_KELAS = 'kelas';
+
+    /** Kelas moving: peserta dipilih per-siswa, boleh lintas kelas. */
+    public const MODE_MANUAL = 'manual';
+
+    /** @var array<string, string> */
+    public const MODE_PESERTA = [
+        self::MODE_KELAS => 'Seluruh siswa pada kelas yang dipilih',
+        self::MODE_MANUAL => 'Kelas moving — pilih siswa tertentu lintas kelas',
+    ];
+
     protected $fillable = [
         'kode_ujian',
         'nama_ujian',
@@ -48,6 +60,7 @@ class Ujian extends Model
         'maks_pelanggaran',
         'wajib_exambro',
         'status',
+        'mode_peserta',
         'ujian_induk_id',
         'is_remidial',
         'guru_id',
@@ -119,15 +132,29 @@ class Ujian extends Model
      * seluruh rombel sekolah: daftar kelas di laporan tidak boleh memuat
      * kelas yang tak pernah ikut ujian tersebut.
      *
+     * Pada ujian kelas moving pesertanya dipilih per-siswa sehingga rombelnya
+     * belum tentu terdaftar di ujian_kelas — kelas asal peserta ikut dihitung
+     * supaya rekap nilai tetap bisa disaring per kelas.
+     *
      * @return \Illuminate\Support\Collection<int, RombonganBelajar>
      */
     public function rombelDipakai(): \Illuminate\Support\Collection
     {
-        $ids = $this->rombelIds();
+        $ids = array_values(array_unique(array_merge(
+            $this->rombelIds(),
+            $this->peserta()->whereNotNull('rombongan_belajar_id')
+                ->distinct()->pluck('rombongan_belajar_id')->map('intval')->all(),
+        )));
 
         return $ids === []
             ? collect()
             : RombonganBelajar::whereIn('id', $ids)->orderBy('tingkat')->orderBy('nama_rombel')->get();
+    }
+
+    /** Ujian kelas moving: pesertanya dipilih per-siswa, bukan per kelas. */
+    public function getKelasMovingAttribute(): bool
+    {
+        return $this->mode_peserta === self::MODE_MANUAL;
     }
 
     /** Ujian sedang berada dalam jendela waktu pelaksanaan. */

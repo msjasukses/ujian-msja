@@ -8,6 +8,9 @@
 <div class="card mb-3">
     <div class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between">
         <div class="d-flex flex-wrap gap-3 align-items-center">
+            @if ($ujian->kelas_moving)
+                <span class="badge text-bg-info"><i class="bi bi-shuffle me-1"></i>Kelas moving</span>
+            @endif
             <span class="badge badge-soft fs-6">
                 Token: <code class="user-select-all">{{ $ujian->token ?: 'tanpa token' }}</code>
             </span>
@@ -29,11 +32,16 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2">
-            <form method="POST" action="{{ route('ujian.peserta.sinkron', $ujian) }}"
-                  data-konfirmasi="Sinkronkan daftar peserta dengan data kelas terbaru di Data Center?">
-                @csrf
-                <button class="btn btn-sm btn-success"><i class="bi bi-arrow-repeat me-1"></i>Sinkron Peserta</button>
-            </form>
+            <a href="{{ route('ujian.peserta.pilih', $ujian) }}" class="btn btn-sm btn-primary">
+                <i class="bi bi-person-plus me-1"></i>Tambah Peserta
+            </a>
+            @unless ($ujian->kelas_moving)
+                <form method="POST" action="{{ route('ujian.peserta.sinkron', $ujian) }}"
+                      data-konfirmasi="Sinkronkan daftar peserta dengan data kelas terbaru di Data Center?">
+                    @csrf
+                    <button class="btn btn-sm btn-success"><i class="bi bi-arrow-repeat me-1"></i>Sinkron Peserta</button>
+                </form>
+            @endunless
             <a href="{{ route('ujian.peserta.export', $ujian) }}" class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Export Daftar Hadir
             </a>
@@ -93,7 +101,7 @@
                     <th>No. Peserta</th>
                     <th class="text-center">Status</th>
                     <th class="text-center">Nilai</th>
-                    <th style="width:6rem"></th>
+                    <th style="width:8rem"></th>
                 </tr>
             </thead>
             <tbody>
@@ -102,7 +110,12 @@
                         <td class="text-muted small">{{ $items->firstItem() + $i }}</td>
                         <td class="small">{{ $p->siswa->nisn ?? '-' }}</td>
                         <td>{{ $p->siswa->nama_siswa ?? '—' }}</td>
-                        <td class="small">{{ $p->rombel->nama_rombel ?? '-' }}</td>
+                        <td class="small">
+                            {{ $p->rombel->nama_rombel ?? '-' }}
+                            @if ($p->sumber === UjianPeserta::SUMBER_MANUAL)
+                                <span class="badge badge-soft ms-1" title="Peserta pilihan guru, tidak ikut tercabut saat sinkron">dipilih</span>
+                            @endif
+                        </td>
                         <td class="small">{{ $p->nomor_peserta ?: '-' }}</td>
                         <td class="text-center">
                             <span class="badge {{ ['terdaftar' => 'badge-soft', 'mulai' => 'text-bg-warning',
@@ -119,14 +132,29 @@
                                     <i class="bi {{ $p->status === UjianPeserta::DIBATALKAN ? 'bi-arrow-counterclockwise' : 'bi-slash-circle' }}"></i>
                                 </button>
                             </form>
+                            @if (in_array($p->status, [UjianPeserta::TERDAFTAR, UjianPeserta::DIBATALKAN]))
+                                <form method="POST" action="{{ route('ujian.peserta.hapus', [$ujian, $p]) }}" class="d-inline"
+                                      data-konfirmasi="Cabut {{ $p->siswa->nama_siswa ?? 'peserta ini' }} dari ujian ini?">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger" title="Cabut dari ujian">
+                                        <i class="bi bi-person-dash"></i>
+                                    </button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty
                     <x-kosong kolom="8" icon="bi-people" pesan="Belum ada peserta terdaftar.">
-                        <form method="POST" action="{{ route('ujian.peserta.sinkron', $ujian) }}">
-                            @csrf
-                            <button class="btn btn-sm btn-success"><i class="bi bi-arrow-repeat me-1"></i>Tarik peserta dari kelas</button>
-                        </form>
+                        @if ($ujian->kelas_moving)
+                            <a href="{{ route('ujian.peserta.pilih', $ujian) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-person-plus me-1"></i>Pilih siswa peserta
+                            </a>
+                        @else
+                            <form method="POST" action="{{ route('ujian.peserta.sinkron', $ujian) }}">
+                                @csrf
+                                <button class="btn btn-sm btn-success"><i class="bi bi-arrow-repeat me-1"></i>Tarik peserta dari kelas</button>
+                            </form>
+                        @endif
                     </x-kosong>
                 @endforelse
             </tbody>

@@ -4,7 +4,29 @@
 @section('content')
 @php use App\Models\Ujian; use App\Support\Pengguna; use App\Support\Referensi; @endphp
 
-@php $rombel = Referensi::rombel(Pengguna::guruId()); @endphp
+@php
+    $rombel = Referensi::rombel(Pengguna::guruId());
+
+    // Peta untuk mengerucutkan centang kelas mengikuti mapel paket soal yang
+    // dipilih — pada kelas moving tidak semua rombel mengambil mapel sama.
+    // "rombel" null berarti tidak bisa dikerucutkan; "alasan" menerangkan
+    // sebabnya supaya guru tidak menduga aplikasinya yang keliru.
+    $infoPaket = $daftarPaket->mapWithKeys(function ($p) {
+        $alasan = Referensi::alasanKelasTidakMengerucut($p->mata_pelajaran_id);
+
+        $moving = Referensi::kelasMoving($p->mata_pelajaran_id);
+
+        return [$p->id => [
+            'mapel' => $p->mataPelajaran->nama_mapel ?? null,
+            'alasan' => $alasan,
+            'moving' => $moving->map(fn ($km) => $km->nama_lengkap.' ('.$km->anggota->count().' siswa)')->values(),
+            'rombel' => $alasan
+                ? null
+                : Referensi::rombelMapel($p->mata_pelajaran_id, Pengguna::guruId())
+                    ->pluck('id')->map('intval')->values(),
+        ]];
+    });
+@endphp
 
 <form method="POST" action="{{ $item->exists ? route('ujian.update', $item) : route('ujian.store') }}">
     @csrf
@@ -111,8 +133,27 @@
             </div>
 
             <div class="card">
-                <div class="card-header">Kelas Peserta <span class="text-danger">*</span></div>
+                <div class="card-header">Peserta Ujian <span class="text-danger">*</span></div>
                 <div class="card-body">
+                    @php $mode = old('mode_peserta', $item->mode_peserta ?: \App\Models\Ujian::MODE_KELAS); @endphp
+                    <div class="mb-3">
+                        @foreach (\App\Models\Ujian::MODE_PESERTA as $nilai => $label)
+                            <div class="form-check">
+                                <input class="form-check-input mode-peserta" type="radio" name="mode_peserta"
+                                       value="{{ $nilai }}" id="mode-{{ $nilai }}" @checked($mode === $nilai)>
+                                <label class="form-check-label" for="mode-{{ $nilai }}">{{ $label }}</label>
+                            </div>
+                        @endforeach
+                        @error('mode_peserta')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                        <div class="form-text" id="catatan-moving">
+                            Kelas moving dipakai bila pesertanya campuran siswa dari beberapa kelas yang mengambil
+                            mata pelajaran yang sama. Siswanya dipilih satu per satu di halaman Peserta; kelas di
+                            bawah ini boleh dikosongkan.
+                        </div>
+                        <div class="form-text text-success-emphasis d-none" id="catatan-kelas-moving-dc"></div>
+                    </div>
+
+                    <div class="fw-semibold small mb-2" id="label-kelas">Kelas peserta</div>
                     @if ($rombel->isEmpty())
                         <div class="alert alert-warning mb-0 small">
                             Tidak ada rombongan belajar pada tahun ajaran aktif di Data Center.
@@ -124,7 +165,7 @@
                         </div>
                         <div class="row g-2">
                             @foreach ($rombel as $k)
-                                <div class="col-6 col-md-4 col-xl-3">
+                                <div class="col-6 col-md-4 col-xl-3 kolom-kelas">
                                     <div class="form-check border rounded p-2 ps-4">
                                         <input class="form-check-input kelas-cb" type="checkbox" name="rombongan_belajar_id[]"
                                                value="{{ $k->id }}" id="kelas-{{ $k->id }}"
@@ -138,6 +179,7 @@
                             @endforeach
                         </div>
                         @error('rombongan_belajar_id')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+                        <div class="form-text mt-2" id="catatan-kelas-mapel"></div>
                         <div class="form-text mt-2">
                             Siswa tiap kelas diambil langsung dari Data Center saat disimpan, dan bisa disinkronkan ulang kapan saja.
                         </div>
@@ -269,8 +311,98 @@
 @push('scripts')
 <script>
     function pilihKelas(nilai) {
-        document.querySelectorAll('.kelas-cb').forEach(cb => cb.checked = nilai);
+        // Hanya kelas yang sedang tampil (pengambil mapel paket) yang ikut.
+        document.querySelectorAll('.kelas-cb').forEach(cb => {
+            if (!cb.closest('.kolom-kelas')?.classList.contains('d-none')) cb.checked = nilai;
+        });
     }
+
+    // Centang kelas mengerucut mengikuti mata pelajaran paket soal: kelas yang
+    // tidak mengambil mapel itu disembunyikan dan centangnya dilepas.
+    (function () {
+        const infoPaket = @json($infoPaket);
+        const paket = document.querySelector('select[name="paket_soal_id"]');
+        const catatan = document.getElementById('catatan-kelas-mapel');
+
+        function segarkanKelas(muatAwal) {
+            const info = paket ? infoPaket[paket.value] : null;
+            const boleh = info ? info.rombel : null;
+            let tersembunyi = 0;
+
+            document.querySelectorAll('.kelas-cb').forEach(cb => {
+                const kolom = cb.closest('.kolom-kelas');
+                // Saat halaman baru dimuat, kelas yang sudah tercentang pada
+                // ujian lama tetap ditampilkan — jangan sampai pilihan guru
+                // hilang diam-diam hanya karena penugasan mapel di Data Center
+                // belum lengkap.
+                const cocok = !boleh || boleh.includes(parseInt(cb.value, 10)) || (muatAwal && cb.checked);
+                if (kolom) kolom.classList.toggle('d-none', !cocok);
+                if (!cocok && cb.checked) cb.checked = false;
+                if (!cocok) tersembunyi++;
+            });
+
+            if (catatan) {
+                catatan.classList.remove('text-warning-emphasis');
+
+                if (info && info.alasan === 'tanpa_mapel') {
+                    catatan.textContent = 'Paket soal ini belum diisi mata pelajarannya, jadi daftar kelas '
+                        + 'tidak bisa dikerucutkan. Isi mata pelajaran pada paket soalnya.';
+                    catatan.classList.add('text-warning-emphasis');
+                } else if (info && info.alasan === 'tanpa_penugasan') {
+                    catatan.textContent = 'Data Center belum mencatat kelas mana yang mengambil '
+                        + (info.mapel || 'mata pelajaran ini')
+                        + ', jadi seluruh kelas ditampilkan.';
+                    catatan.classList.add('text-warning-emphasis');
+                } else {
+                    catatan.textContent = tersembunyi > 0
+                        ? tersembunyi + ' kelas disembunyikan karena tidak mengambil mata pelajaran paket soal ini.'
+                        : '';
+                }
+            }
+        }
+
+        // Beri tahu kalau mapel paket ini sudah punya kelas moving di Data
+        // Center — pesertanya tinggal diambil dari sana di halaman Peserta.
+        const catatanDc = document.getElementById('catatan-kelas-moving-dc');
+
+        function segarkanKelasMoving() {
+            if (! catatanDc) return;
+
+            const info = paket ? infoPaket[paket.value] : null;
+            const daftar = info && info.moving ? info.moving : [];
+
+            catatanDc.classList.toggle('d-none', daftar.length === 0);
+            catatanDc.textContent = daftar.length
+                ? 'Mata pelajaran ini sudah punya kelas moving di Data Center: ' + daftar.join(', ')
+                  + '. Anggotanya langsung muncul sebagai kandidat di halaman Peserta.'
+                : '';
+        }
+
+        if (paket) paket.addEventListener('change', () => {
+            segarkanKelas(false);
+            segarkanKelasMoving();
+        });
+
+        segarkanKelas(true);
+        segarkanKelasMoving();
+    })();
+
+    // Keterangan kelas menyesuaikan mode peserta: pada kelas moving daftar
+    // kelas hanya pelengkap (boleh kosong), bukan penentu peserta.
+    (function () {
+        const radio = document.querySelectorAll('.mode-peserta');
+        const catatan = document.getElementById('catatan-moving');
+        const label = document.getElementById('label-kelas');
+
+        function segarkan() {
+            const moving = document.querySelector('.mode-peserta:checked')?.value === 'manual';
+            if (catatan) catatan.classList.toggle('d-none', !moving);
+            if (label) label.textContent = moving ? 'Kelas peserta (opsional)' : 'Kelas peserta';
+        }
+
+        radio.forEach(r => r.addEventListener('change', segarkan));
+        segarkan();
+    })();
 </script>
 @endpush
 @endsection

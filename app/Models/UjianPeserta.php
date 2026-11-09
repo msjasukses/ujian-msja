@@ -29,10 +29,17 @@ class UjianPeserta extends Model
         self::DIBATALKAN => 'Dibatalkan',
     ];
 
+    /** Peserta hasil tarik otomatis dari kelas yang dipilih pada ujian. */
+    public const SUMBER_KELAS = 'kelas';
+
+    /** Peserta yang ditambahkan guru satu per satu (ujian kelas moving). */
+    public const SUMBER_MANUAL = 'manual';
+
     protected $fillable = [
         'ujian_id',
         'siswa_id',
         'rombongan_belajar_id',
+        'sumber',
         'nomor_peserta',
         'status',
         'waktu_mulai',

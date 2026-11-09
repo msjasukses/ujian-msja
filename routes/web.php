@@ -83,6 +83,10 @@ Route::middleware('pengelola')->group(function () {
     // --- 4. Registrasi ujian ---
     Route::get('ujian/{ujian}/peserta', [UjianController::class, 'peserta'])->name('ujian.peserta');
     Route::post('ujian/{ujian}/peserta/sinkron', [UjianController::class, 'sinkronPeserta'])->name('ujian.peserta.sinkron');
+    // Pemilihan peserta per siswa — untuk ujian kelas moving (peserta lintas kelas).
+    Route::get('ujian/{ujian}/peserta/pilih', [UjianController::class, 'pilihPeserta'])->name('ujian.peserta.pilih');
+    Route::post('ujian/{ujian}/peserta/tambah', [UjianController::class, 'tambahPeserta'])->name('ujian.peserta.tambah');
+    Route::delete('ujian/{ujian}/peserta/{peserta}', [UjianController::class, 'hapusPeserta'])->name('ujian.peserta.hapus');
     Route::patch('ujian/{ujian}/peserta/{peserta}/toggle', [UjianController::class, 'togglePeserta'])->name('ujian.peserta.toggle');
     Route::get('ujian/{ujian}/peserta/export', [UjianController::class, 'exportPeserta'])->name('ujian.peserta.export');
     Route::patch('ujian/{ujian}/status', [UjianController::class, 'ubahStatus'])->name('ujian.status');

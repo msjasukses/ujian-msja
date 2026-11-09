@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\PaketSoal;
+use App\Models\RombonganBelajar;
 use App\Models\Siswa;
+use App\Models\SiswaRombel;
+use App\Models\TahunAjaran;
 use App\Models\Ujian;
 use App\Models\UjianKelas;
 use App\Models\UjianPeserta;
@@ -81,6 +84,13 @@ class UjianController extends Controller
             return $ujian;
         });
 
+        // Ujian kelas moving pesertanya dipilih per siswa, jadi guru langsung
+        // diantar ke halaman pemilihan alih-alih menunggu tarikan dari kelas.
+        if ($ujian->kelas_moving) {
+            return redirect()->route('ujian.peserta.pilih', $ujian)
+                ->with('success', 'Ujian kelas moving dibuat. Pilih siswa pesertanya di halaman ini.');
+        }
+
         $hasil = $this->registrasi->sinkronkan($ujian);
 
         return redirect()->route('ujian.peserta', $ujian)
@@ -157,6 +167,11 @@ class UjianController extends Controller
 
     public function sinkronPeserta(Ujian $ujian)
     {
+        if ($ujian->kelas_moving) {
+            return back()->with('error',
+                'Ujian ini memakai peserta kelas moving, jadi pesertanya dipilih per siswa. Pakai tombol "Tambah Peserta".');
+        }
+
         if ($ujian->rombelIds() === []) {
             return back()->with('error', 'Belum ada kelas peserta yang dipilih pada ujian ini.');
         }
@@ -165,6 +180,122 @@ class UjianController extends Controller
 
         return back()->with('success',
             "Sinkron peserta selesai: {$hasil['ditambah']} ditambahkan, {$hasil['dicabut']} dicabut, total {$hasil['total']} peserta.");
+    }
+
+    /**
+     * Halaman pilih peserta per siswa — inti dukungan ujian kelas moving:
+     * peserta boleh berupa sebagian siswa dari beberapa kelas sekaligus.
+     *
+     * Sumber kandidatnya didahulukan dari kelas moving yang sudah disusun di
+     * Data Center untuk mata pelajaran ujian ini: anggotanya persis siswa
+     * yang mengambil mapel itu, lintas rombel. Bila mapel tersebut belum
+     * punya kelas moving, daftarnya mundur ke seluruh siswa pada rombel
+     * pengambil mapel tersebut.
+     */
+    public function pilihPeserta(Request $r, Ujian $ujian)
+    {
+        $tahunAjaranId = TahunAjaran::aktif()?->id;
+        $cari = trim((string) $r->q);
+
+        $kelasMoving = Referensi::kelasMoving($ujian->mata_pelajaran_id);
+        $daftarKelas = Referensi::rombelMapel($ujian->mata_pelajaran_id, Pengguna::guruId());
+
+        if ($kelasMoving->isNotEmpty()) {
+            // Satu kelas moving bisa dipilih untuk mempersempit; tanpa itu,
+            // seluruh anggota kelas moving mapel ini ditampilkan.
+            $movingId = (int) $r->kelas_moving_id;
+            $dipakai = $kelasMoving->firstWhere('id', $movingId)
+                ? $kelasMoving->where('id', $movingId)
+                : $kelasMoving;
+            $movingId = $dipakai->count() === 1 ? (int) $dipakai->first()->id : 0;
+
+            $siswaIds = $dipakai->flatMap->siswaIds()->unique()->values();
+
+            // Nama kelas moving per siswa, untuk ditampilkan di tabel.
+            $movingSiswa = collect();
+            foreach ($dipakai as $km) {
+                foreach ($km->siswaIds() as $sid) {
+                    $movingSiswa[$sid] = $km->nama_lengkap;
+                }
+            }
+        } else {
+            $movingId = 0;
+            $movingSiswa = collect();
+            $siswaIds = SiswaRombel::whereIn('rombongan_belajar_id', $daftarKelas->pluck('id')->all() ?: [0])
+                ->when($tahunAjaranId, fn ($q) => $q->where('tahun_ajaran_id', $tahunAjaranId))
+                ->pluck('siswa_id');
+        }
+
+        // Penyaring rombel asal tetap tersedia pada kedua sumber.
+        $rombelId = (int) $r->rombongan_belajar_id;
+
+        $kelasSiswa = SiswaRombel::whereIn('siswa_id', $siswaIds->all() ?: [0])
+            ->when($tahunAjaranId, fn ($q) => $q->where('tahun_ajaran_id', $tahunAjaranId))
+            ->pluck('rombongan_belajar_id', 'siswa_id');
+
+        if ($rombelId) {
+            $siswaIds = $siswaIds->filter(fn ($id) => (int) $kelasSiswa->get($id) === $rombelId)->values();
+        }
+
+        $kandidat = Siswa::aktif()
+            ->whereIn('id', $siswaIds->all() ?: [0])
+            ->when($cari !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('nama_siswa', 'like', "%{$cari}%")
+                ->orWhere('nisn', 'like', "%{$cari}%")
+                ->orWhere('nis', 'like', "%{$cari}%")))
+            ->orderBy('nama_siswa')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('ujian.pilih-peserta', [
+            'ujian' => $ujian->load('mataPelajaran'),
+            'kandidat' => $kandidat,
+            'kelasMoving' => $kelasMoving,
+            'movingTerpilih' => $movingId,
+            'movingSiswa' => $movingSiswa,
+            'daftarKelas' => $daftarKelas,
+            'alasanTidakMengerucut' => Referensi::alasanKelasTidakMengerucut($ujian->mata_pelajaran_id),
+            'kelasTerpilih' => $rombelId,
+            'kelasSiswa' => $kelasSiswa,
+            'namaRombel' => RombonganBelajar::whereIn('id', $kelasSiswa->values()->unique()->filter())
+                ->pluck('nama_rombel', 'id'),
+            'sudahTerdaftar' => $ujian->peserta()->pluck('status', 'siswa_id'),
+        ]);
+    }
+
+    /** Daftarkan siswa-siswa pilihan guru sebagai peserta ujian. */
+    public function tambahPeserta(Request $r, Ujian $ujian)
+    {
+        $r->validate([
+            'siswa_id' => 'required|array|min:1',
+            'siswa_id.*' => 'integer',
+        ], [], ['siswa_id' => 'Siswa']);
+
+        // Hanya siswa yang benar-benar ada dan berstatus aktif di Data Center.
+        $ids = Siswa::aktif()->whereIn('id', $r->input('siswa_id'))->pluck('id')->all();
+
+        if ($ids === []) {
+            return back()->with('error', 'Tidak ada siswa aktif pada pilihan tersebut.');
+        }
+
+        $jumlah = $this->registrasi->daftarkanSiswa($ujian, $ids, UjianPeserta::SUMBER_MANUAL);
+        $sudah = count($ids) - $jumlah;
+
+        return back()->with('success', $jumlah.' siswa ditambahkan sebagai peserta'
+            .($sudah > 0 ? ", {$sudah} siswa sudah terdaftar sebelumnya" : '').'.');
+    }
+
+    /** Cabut seorang peserta dari ujian (hapus pendaftarannya). */
+    public function hapusPeserta(Ujian $ujian, UjianPeserta $peserta)
+    {
+        abort_unless($peserta->ujian_id === $ujian->id, 404);
+
+        if (! $this->registrasi->cabutPeserta($peserta)) {
+            return back()->with('error',
+                'Peserta ini sudah mengerjakan ujian sehingga tidak bisa dicabut. Pakai tombol batalkan keikutsertaan.');
+        }
+
+        return back()->with('success', 'Peserta dicabut dari ujian ini.');
     }
 
     /** Batalkan / aktifkan kembali keikutsertaan seorang peserta. */
@@ -236,6 +367,7 @@ class UjianController extends Controller
     protected function daftarPaket()
     {
         return PaketSoal::aktif()
+            ->with('mataPelajaran')
             ->when(Pengguna::guruId(), fn ($q, $g) => $q->where('guru_id', $g))
             ->withCount('detail')
             ->orderBy('nama_paket')
@@ -291,13 +423,22 @@ class UjianController extends Controller
             'kkm' => 'required|numeric|min:0|max:100',
             'maks_pelanggaran' => 'required|integer|min:0|max:255',
             'status' => 'required|in:'.implode(',', array_keys(Ujian::STATUS)),
-            'rombongan_belajar_id' => 'required|array|min:1',
+            // Tidak dikirim berarti mode kelas, perilaku bawaan sejak awal.
+            'mode_peserta' => 'nullable|in:'.implode(',', array_keys(Ujian::MODE_PESERTA)),
+            // Pada ujian kelas moving peserta dipilih per siswa, jadi daftar
+            // kelas boleh kosong; mode biasa tetap wajib minimal satu kelas.
+            'rombongan_belajar_id' => $r->input('mode_peserta') === Ujian::MODE_MANUAL
+                ? 'nullable|array'
+                : 'required|array|min:1',
             'rombongan_belajar_id.*' => 'integer',
         ], [], [
             'paket_soal_id' => 'Paket soal',
             'rombongan_belajar_id' => 'Kelas peserta',
+            'mode_peserta' => 'Mode peserta',
             'waktu_selesai' => 'Waktu selesai',
         ]);
+
+        $data['mode_peserta'] = ($data['mode_peserta'] ?? null) ?: Ujian::MODE_KELAS;
 
         // Mapel ujian selalu mengikuti paket soalnya agar laporan per mapel konsisten.
         $data['mata_pelajaran_id'] = PaketSoal::find($data['paket_soal_id'])?->mata_pelajaran_id;

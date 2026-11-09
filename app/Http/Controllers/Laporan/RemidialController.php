@@ -88,7 +88,10 @@ class RemidialController extends TindakLanjutController
             ]);
         }
 
-        $jumlah = $registrasi->daftarkanSiswa($remidial, $siswaIds);
+        // Peserta remidial adalah siswa pilihan (yang belum tuntas), bukan
+        // seluruh isi kelas — ditandai manual supaya sinkron peserta tidak
+        // mencabutnya.
+        $jumlah = $registrasi->daftarkanSiswa($remidial, $siswaIds, UjianPeserta::SUMBER_MANUAL);
 
         return redirect()->route('ujian.edit', $remidial)->with(
             'success',
