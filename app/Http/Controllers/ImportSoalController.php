@@ -11,6 +11,7 @@ use App\Support\Referensi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 
@@ -144,7 +145,15 @@ class ImportSoalController extends Controller
         return $excel->template();
     }
 
-    /** Unduh contoh naskah Word yang formatnya dikenali parser. */
+    /**
+     * Unduh contoh naskah Word yang formatnya dikenali parser.
+     *
+     * Contohnya disusun bertabel — satu tabel per butir, baris kepala memuat
+     * jenis soalnya — karena begitulah naskah soal biasa ditulis di sekolah:
+     * rapi saat dicetak, dan kolom kiri yang sempit menjadi tempat nomor dan
+     * huruf opsi. Naskah tanpa tabel tetap diterima; keduanya dibaca oleh
+     * pengurai yang sama.
+     */
     public function templateWord()
     {
         $phpWord = new PhpWord;
@@ -155,68 +164,146 @@ class ImportSoalController extends Controller
 
         $section->addText('CONTOH NASKAH SOAL UNTUK IMPORT', $judul);
         $section->addText(
-            'Tulis tiap soal diawali nomor. Baris opsi diawali huruf A., B., dst. '.
-            'Kunci ditulis pada baris "JAWABAN:" atau "KUNCI:". Baris PEMBAHASAN, BOBOT, '.
-            'LEVEL dan KESUKARAN bersifat opsional.',
+            'Satu tabel = satu butir soal. Baris pertama menyebut jenis soalnya, '.
+            'kolom kiri berisi nomor butir lalu huruf opsi, dan baris penutup memuat '.
+            'JAWABAN serta BOBOT. Baris LEVEL, KESUKARAN, KATA KUNCI, dan PEMBAHASAN '.
+            'boleh dihapus bila tidak dipakai. Tabelnya boleh ditambah, dihapus, atau '.
+            'disalin sebanyak yang diperlukan — nomornya tidak harus berurutan.',
+            $catatan
+        );
+        $section->addText(
+            'Naskah biasa tanpa tabel juga terbaca: tulis "1. pertanyaan", '.
+            'baris opsi "A. ...", lalu "JAWABAN: A".',
             $catatan
         );
         $section->addTextBreak();
 
-        $baris = [
-            '1. Ibu kota Provinsi Jawa Barat adalah ...',
-            'A. Bandung',
-            'B. Semarang',
-            'C. Surabaya',
-            'D. Serang',
-            'JAWABAN: A',
-            'BOBOT: 1',
-            'LEVEL: C1',
-            'KESUKARAN: mudah',
-            'PEMBAHASAN: Bandung merupakan ibu kota Provinsi Jawa Barat.',
-            '',
-            '2. Manakah yang termasuk bilangan prima? (jawaban boleh lebih dari satu)',
-            'A. 2',
-            'B. 4',
-            'C. 7',
-            'D. 9',
-            'E. 11',
-            'JAWABAN: A, C, E',
-            'BOBOT: 2',
-            '',
-            '3. Air mendidih pada suhu 100 derajat Celsius di tekanan 1 atm.',
-            'JAWABAN: benar',
-            '',
-            '4. Jelaskan proses terjadinya hujan!',
-            'JENIS: essay',
-            'JAWABAN: Air menguap (evaporasi), mengembun menjadi awan (kondensasi), lalu turun sebagai hujan (presipitasi).',
-            'BOBOT: 5',
-            '',
-            '5. Jodohkan negara berikut dengan ibu kotanya!',
-            'JENIS: penjodohan',
-            'Jepang ## Tokyo',
-            'Korea Selatan ## Seoul',
-            'Thailand ## Bangkok',
-            'Vietnam ## Hanoi',
-            'BOBOT: 4',
-            '',
-            '6. Tentukan benar atau salah setiap pernyataan tentang pernapasan manusia berikut!',
-            'JENIS: benar salah kompleks',
-            'Oksigen diserap di alveolus ## benar',
-            'Udara masuk melalui kerongkongan ## salah',
-            'Diafragma membantu proses pernapasan ## benar',
-            'Karbon dioksida dikeluarkan saat menghirup ## salah',
-            'BOBOT: 4',
-            'PEMBAHASAN: Kerongkongan adalah saluran makanan; saluran udara adalah tenggorokan.',
-        ];
-
-        foreach ($baris as $teks) {
-            $teks === '' ? $section->addTextBreak() : $section->addText($teks);
+        // Seluruh keterangan ditaruh di atas, sebelum butir pertama. Kalimat
+        // apa pun yang berdiri sesudah tabel terakhir akan terbaca sebagai
+        // lanjutan pertanyaan butir terakhir — pengurai tidak punya cara
+        // membedakan catatan penulis dari isi soalnya.
+        foreach ($this->contohNaskahWord() as $butir) {
+            $this->tabelContohSoal($section, $butir);
+            $section->addTextBreak();
         }
 
-        $namaFile = 'template-import-soal.docx';
         $tmp = tempnam(sys_get_temp_dir(), 'soal').'.docx';
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
 
-        return response()->download($tmp, $namaFile)->deleteFileAfterSend(true);
+        return response()->download($tmp, 'template-import-soal.docx')->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Isi contoh untuk tiap jenis soal.
+     *
+     * Tiap butir berupa daftar baris tabel: string menjadi baris selebar
+     * tabel (penanda seperti "JAWABAN : A"), sedangkan pasangan [kiri, kanan]
+     * menjadi baris dua kolom (nomor + pertanyaan, huruf + opsi, pernyataan +
+     * kunci, atau pasangan penjodohan).
+     *
+     * @return array<int, array<int, string|array{0: string, 1: string}>>
+     */
+    protected function contohNaskahWord(): array
+    {
+        return [
+            [
+                'JENIS SOAL : PILIHAN GANDA',
+                ['1', 'Ibu kota Provinsi Jawa Barat adalah ...'],
+                ['A', 'Bandung'],
+                ['B', 'Semarang'],
+                ['C', 'Surabaya'],
+                ['D', 'Serang'],
+                'JAWABAN : A',
+                'BOBOT : 1',
+                'LEVEL : C1',
+                'KESUKARAN : mudah',
+                'PEMBAHASAN : Bandung merupakan ibu kota Provinsi Jawa Barat.',
+            ],
+            [
+                'JENIS SOAL : PILIHAN GANDA KOMPLEKS (JAWABAN LEBIH DARI SATU)',
+                ['2', 'Manakah yang termasuk bilangan prima?'],
+                ['A', '2'],
+                ['B', '4'],
+                ['C', '7'],
+                ['D', '9'],
+                ['E', '11'],
+                'JAWABAN : A, C, E',
+                'BOBOT : 2',
+            ],
+            [
+                'JENIS SOAL : PENJODOHAN',
+                ['3', 'Jodohkan negara berikut dengan ibu kotanya!'],
+                ['Jepang', 'Tokyo'],
+                ['Korea Selatan', 'Seoul'],
+                ['Thailand', 'Bangkok'],
+                ['Vietnam', 'Hanoi'],
+                'BOBOT : 4',
+            ],
+            [
+                'JENIS SOAL : BENAR/SALAH (BIASA)',
+                ['4', 'Air mendidih pada suhu 100 derajat Celsius di tekanan 1 atm.'],
+                'benar',
+                'salah',
+                'JAWABAN : benar',
+                'BOBOT : 1',
+            ],
+            [
+                'JENIS SOAL : BENAR/SALAH (KOMPLEKS)',
+                ['5', 'Tentukan benar atau salah setiap pernyataan tentang pernapasan manusia berikut!'],
+                ['Oksigen diserap di alveolus', 'benar'],
+                ['Udara masuk melalui kerongkongan', 'salah'],
+                ['Diafragma membantu proses pernapasan', 'benar'],
+                ['Karbon dioksida dikeluarkan saat menghirup', 'salah'],
+                'BOBOT : 4',
+                'PEMBAHASAN : Kerongkongan adalah saluran makanan; saluran udara adalah tenggorokan.',
+            ],
+            [
+                'JENIS SOAL : ESSAY (URAIAN)',
+                ['6', 'Jelaskan proses terjadinya hujan!'],
+                // Essay tidak punya opsi: yang wajib hanyalah baris JAWABAN,
+                // yang dipakai guru sebagai acuan saat menilai. KATA KUNCI
+                // bersifat opsional dan ditulis dipisah koma.
+                'JAWABAN : Air menguap (evaporasi), lalu mengembun menjadi awan (kondensasi), '
+                    .'dan akhirnya turun kembali ke bumi sebagai hujan (presipitasi).',
+                'KATA KUNCI : evaporasi, kondensasi, presipitasi',
+                'BOBOT : 5',
+                'LEVEL : C2',
+                'KESUKARAN : sedang',
+            ],
+        ];
+    }
+
+    /**
+     * Gambar satu tabel contoh.
+     *
+     * @param  array<int, string|array{0: string, 1: string}>  $butir
+     */
+    protected function tabelContohSoal(Section $section, array $butir): void
+    {
+        $tabel = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => 'AAAAAA',
+            'cellMargin' => 70,
+            'width' => 100 * 50,
+            'unit' => 'pct',
+        ]);
+
+        $tebal = ['bold' => true];
+        $lebarKiri = 1800;
+        $lebarKanan = 7600;
+
+        foreach ($butir as $baris) {
+            $tabel->addRow();
+
+            if (is_array($baris)) {
+                $tabel->addCell($lebarKiri)->addText($baris[0], $tebal);
+                $tabel->addCell($lebarKanan)->addText($baris[1]);
+
+                continue;
+            }
+
+            // Baris penanda memakai satu sel selebar tabel.
+            $tabel->addCell($lebarKiri + $lebarKanan, ['gridSpan' => 2])->addText($baris, $tebal);
+        }
     }
 }

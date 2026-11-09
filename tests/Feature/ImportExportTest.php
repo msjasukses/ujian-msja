@@ -384,18 +384,171 @@ class ImportExportTest extends TestCase
         $this->assertSame([], $hasil['galat']);
         $this->assertCount(6, $hasil['soal']);
         $this->assertSame(
-            [Soal::PG, Soal::PG_KOMPLEKS, Soal::BENAR_SALAH, Soal::ESSAY, Soal::PENJODOHAN, Soal::BENAR_SALAH_KOMPLEKS],
+            [Soal::PG, Soal::PG_KOMPLEKS, Soal::PENJODOHAN, Soal::BENAR_SALAH, Soal::BENAR_SALAH_KOMPLEKS, Soal::ESSAY],
             array_column($hasil['soal'], 'jenis')
         );
 
-        // Pernyataan beserta kuncinya ikut terbaca dari baris "## benar/salah".
-        $bsk = $hasil['soal'][5];
+        // Pernyataan beserta kuncinya ikut terbaca dari tabel dua kolom.
+        $bsk = $hasil['soal'][4];
         $this->assertCount(4, $bsk['opsi']);
         $this->assertSame(
             ['1' => 'benar', '2' => 'salah', '3' => 'benar', '4' => 'salah'],
             $bsk['kunci']
         );
+
+        // Pilihan "benar" dan "salah" yang tercantum sebagai baris tersendiri
+        // hanya memperlihatkan pilihan ke pembaca naskah; keduanya tidak boleh
+        // ikut terbawa ke dalam teks pertanyaan.
+        $this->assertStringNotContainsString('salah', $hasil['soal'][3]['pertanyaan']);
+
+        // Essay: baris JAWABAN menjadi kunci penilaian, KATA KUNCI menjadi
+        // daftar kata yang dicari guru saat memeriksa.
+        $essay = $hasil['soal'][5];
+        $this->assertStringContainsString('evaporasi', $essay['kunci']['jawaban']);
+        $this->assertSame(['evaporasi', 'kondensasi', 'presipitasi'], $essay['kunci']['kata_kunci']);
+        $this->assertSame(5.0, $essay['bobot']);
+
+        // Keterangan penggunaan harus berdiri sebelum butir pertama. Bila ada
+        // kalimat yang tertinggal sesudah tabel terakhir, kalimat itu terbaca
+        // sebagai lanjutan pertanyaan butir penutup.
+        $this->assertSame('Jelaskan proses terjadinya hujan!', $essay['pertanyaan']);
         @unlink($tmp);
+    }
+
+    /**
+     * Naskah bertabel: satu tabel per butir, jenis soal di baris kepala,
+     * nomor dan huruf opsi di kolom kiri. Bentuk inilah yang dipakai guru
+     * karena rapi saat dicetak, dan ia harus terbaca sama persis dengan
+     * naskah biasa.
+     */
+    public function test_parser_word_membaca_naskah_bertabel(): void
+    {
+        $path = $this->berkasWordTabel([
+            [
+                'JENIS SOAL : pilihan ganda',
+                ['1', 'Ibu kota Provinsi Jawa Barat adalah ...'],
+                ['A', 'Bandung'],
+                ['B', 'Semarang'],
+                ['C', 'Surabaya'],
+                'JAWABAN : A',
+                'BOBOT : 1',
+            ],
+            [
+                'JENIS SOAL : PILIHAN GANDA KOMPLEKS (JAWABAN LEBIH DARI 1)',
+                ['2', 'Manakah bilangan prima?'],
+                ['A', '2'],
+                ['B', '4'],
+                ['C', '7'],
+                'JAWABAN : A, C',
+                'BOBOT : 1',
+            ],
+            [
+                'JENIS SOAL : PENJODOHAN',
+                ['3', 'Jodohkan negara dengan ibu kotanya!'],
+                ['Jepang', 'Tokyo'],
+                ['Korea Selatan', 'Seoul'],
+                'BOBOT : 1',
+            ],
+            [
+                'JENIS SOAL : SALAH/BENAR (BIASA)',
+                ['4', 'Air mendidih pada suhu 100 derajat Celsius.'],
+                'benar',
+                'salah',
+                'JAWABAN : benar',
+                'BOBOT : 1',
+            ],
+            [
+                'JENIS SOAL : BENAR/SALAH (KOMPLEKS)',
+                ['5', 'Tentukan benar atau salah tiap pernyataan!'],
+                ['Oksigen diserap di alveolus', 'Benar'],
+                ['Udara masuk melalui kerongkongan', 'Salah'],
+                'BOBOT : 2',
+            ],
+            [
+                'JENIS SOAL : ESSAY (URAIAN)',
+                ['6', 'Jelaskan proses terjadinya hujan!'],
+                'JAWABAN : Air menguap, mengembun, lalu turun sebagai hujan.',
+                'KATA KUNCI : menguap, mengembun',
+                'BOBOT : 5',
+            ],
+        ]);
+
+        $hasil = app(ImportSoalWordService::class)->baca($path);
+
+        $this->assertSame([], $hasil['galat']);
+        $this->assertSame(
+            [Soal::PG, Soal::PG_KOMPLEKS, Soal::PENJODOHAN, Soal::BENAR_SALAH, Soal::BENAR_SALAH_KOMPLEKS, Soal::ESSAY],
+            array_column($hasil['soal'], 'jenis')
+        );
+
+        [$pg, $pgk, $jodoh, $bs, $bsk, $essay] = $hasil['soal'];
+
+        // Kolom kiri yang berisi huruf menjadi kunci opsi, kolom kanan isinya.
+        $this->assertSame('Bandung', $pg['opsi'][0]['text']);
+        $this->assertSame(['A'], $pg['kunci']);
+        $this->assertSame('Ibu kota Provinsi Jawa Barat adalah ...', $pg['pertanyaan']);
+
+        $this->assertSame(['A', 'C'], $pgk['kunci']);
+
+        $this->assertSame('Tokyo', $jodoh['opsi']['kanan'][0]['text']);
+        $this->assertSame(['1' => 'A', '2' => 'B'], $jodoh['kunci']);
+
+        // Baris "benar" dan "salah" hanyalah daftar pilihan yang dilihat siswa.
+        $this->assertSame('Air mendidih pada suhu 100 derajat Celsius.', $bs['pertanyaan']);
+        $this->assertSame(['benar'], $bs['kunci']);
+
+        // "(KOMPLEKS)" di belakang nama jenis menentukan segalanya di sini:
+        // tanpa dibaca, butir ini jatuh menjadi benar/salah biasa dan seluruh
+        // daftar pernyataannya lenyap ke dalam teks pertanyaan.
+        $this->assertSame(['1' => 'benar', '2' => 'salah'], $bsk['kunci']);
+        $this->assertSame('Oksigen diserap di alveolus', $bsk['opsi'][0]['text']);
+
+        $this->assertStringContainsString('Air menguap', $essay['kunci']['jawaban']);
+        $this->assertSame(['menguap', 'mengembun'], $essay['kunci']['kata_kunci']);
+        $this->assertSame(5.0, $essay['bobot']);
+
+        // Sampai tersimpan di bank soal, bukan sekadar terbaca.
+        $this->post('/soal/import/pratinjau', [
+            'sumber' => 'word',
+            'berkas' => new UploadedFile($path, 'naskah-tabel.docx', null, null, true),
+        ])->assertRedirect(route('soal.import.form', ['sumber' => 'word']));
+
+        $this->withSession(['import_soal_pratinjau' => session('import_soal_pratinjau')])
+            ->post('/soal/import/simpan', ['pilih' => [0, 1, 2, 3, 4, 5]])
+            ->assertRedirect('/soal');
+
+        $this->assertSame(6, Soal::count());
+
+        $tersimpan = Soal::where('jenis', Soal::ESSAY)->firstOrFail();
+        $this->assertSame('Jelaskan proses terjadinya hujan!', $tersimpan->pertanyaan);
+        $this->assertSame(['menguap', 'mengembun'], $tersimpan->kunci['kata_kunci']);
+
+        @unlink($path);
+    }
+
+    /**
+     * Tabel yang selnya sudah berupa naskah utuh — opsi dipasang dua-dua per
+     * baris — dibaca sel per sel seperti sebelumnya, bukan dipasangkan
+     * menjadi soal penjodohan.
+     */
+    public function test_parser_word_tabel_tata_letak_tidak_dibaca_sebagai_penjodohan(): void
+    {
+        $path = $this->berkasWordTabel([[
+            ['1. Ibu kota Provinsi Jawa Barat adalah ...', ''],
+            ['A. Bandung', 'B. Semarang'],
+            ['C. Surabaya', 'D. Serang'],
+            'JAWABAN : A',
+        ]]);
+
+        $hasil = app(ImportSoalWordService::class)->baca($path);
+
+        $this->assertSame([], $hasil['galat']);
+        $this->assertCount(1, $hasil['soal']);
+        $this->assertSame(Soal::PG, $hasil['soal'][0]['jenis']);
+        $this->assertCount(4, $hasil['soal'][0]['opsi']);
+        $this->assertSame('Serang', $hasil['soal'][0]['opsi'][3]['text']);
+
+        @unlink($path);
     }
 
     /** Semua tombol Export Excel menghasilkan berkas xlsx yang sah. */
@@ -443,6 +596,42 @@ class ImportExportTest extends TestCase
 
         foreach ($baris as $teks) {
             $section->addText($teks);
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'uji').'.docx';
+        IOFactory::createWriter($phpWord, 'Word2007')->save($path);
+
+        return $path;
+    }
+
+    /**
+     * Naskah Word bertabel: satu tabel per butir. String menjadi baris satu
+     * sel selebar tabel, pasangan [kiri, kanan] menjadi baris dua kolom.
+     *
+     * @param  array<int, array<int, string|array{0: string, 1: string}>>  $butir
+     */
+    protected function berkasWordTabel(array $butir): string
+    {
+        $phpWord = new PhpWord;
+        $section = $phpWord->addSection();
+
+        foreach ($butir as $baris) {
+            $tabel = $section->addTable(['borderSize' => 6]);
+
+            foreach ($baris as $isi) {
+                $tabel->addRow();
+
+                if (is_array($isi)) {
+                    $tabel->addCell(1500)->addText($isi[0]);
+                    $tabel->addCell(7500)->addText($isi[1]);
+
+                    continue;
+                }
+
+                $tabel->addCell(9000, ['gridSpan' => 2])->addText($isi);
+            }
+
+            $section->addTextBreak();
         }
 
         $path = tempnam(sys_get_temp_dir(), 'uji').'.docx';

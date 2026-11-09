@@ -37,10 +37,37 @@ use PhpOffice\PhpWord\IOFactory;
  *
  * Baris kunci boleh diawali JAWABAN / KUNCI / KUNCI JAWABAN, dan penanda
  * bobot ditulis "BOBOT: 5".
+ *
+ * Naskah bertabel juga diterima — satu tabel per butir, bentuk yang lazim
+ * dipakai sekolah karena rapi saat dicetak:
+ *
+ *   +------------------------------------------+
+ *   | JENIS SOAL : pilihan ganda               |
+ *   +-----+------------------------------------+
+ *   |  1  | Ibu kota Provinsi Jawa Barat ...   |
+ *   |  A  | Bandung                            |
+ *   |  B  | Semarang                           |
+ *   +------------------------------------------+
+ *   | JAWABAN : A                              |
+ *   | BOBOT : 1                                |
+ *   +------------------------------------------+
+ *
+ * Barisnya diterjemahkan lebih dulu ke bentuk naskah biasa di atas, jadi
+ * kedua susunan itu dibaca oleh satu pengurai yang sama.
  */
 class ImportSoalWordService
 {
     protected const PEMISAH_JODOH = '##';
+
+    /**
+     * Kata kunci penanda di awal baris, mis. "JAWABAN : C".
+     *
+     * Dipakai dua kali: mengenali sel kiri sebuah tabel dua kolom
+     * ("JAWABAN | C") dan menandai batas antar butir di dalam satu tabel
+     * panjang yang memuat banyak soal sekaligus.
+     */
+    protected const POLA_PENANDA = 'JAWABAN|KUNCI(?:\s*JAWABAN)?|KATA\s*KUNCI|JENIS(?:\s*SOAL)?'
+        .'|BOBOT|LEVEL|RANAH|(?:TINGKAT\s*)?KESUKARAN|PEMBAHASAN';
 
     /**
      * Penanda sementara untuk gambar yang ditemukan di dalam dokumen.
@@ -81,23 +108,29 @@ class ImportSoalWordService
             }
         }
 
-        // PhpWord mengembalikan teks apa adanya dari XML dokumen, jadi masih
-        // dalam bentuk ter-escape: tanda kutip terbaca &quot; dan tanda &
-        // terbaca &amp;. Entitasnya dipulihkan lebih dulu — kalau tidak,
-        // kalimat sesederhana Bacalah teks "Banjir" berikut! akan masuk ke
-        // bank soal dengan &quot; di badan pertanyaannya. Pemulihan dilakukan
-        // sebelum spasi dirapikan supaya &nbsp; ikut tertangkap aturan
-        // \x{00A0} di bawah.
-        $baris = array_map(
-            fn ($t) => html_entity_decode((string) $t, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
-            $baris
-        );
-
         // Rapikan: buang spasi ganda dan baris kosong.
         return array_values(array_filter(
-            array_map(fn ($t) => trim(preg_replace('/\x{00A0}|\s+/u', ' ', $t)), $baris),
+            array_map(fn ($t) => $this->rapikan((string) $t), $baris),
             fn ($t) => $t !== ''
         ));
+    }
+
+    /**
+     * Satu baris naskah siap diurai.
+     *
+     * PhpWord mengembalikan teks apa adanya dari XML dokumen, jadi masih
+     * dalam bentuk ter-escape: tanda kutip terbaca &quot; dan tanda &
+     * terbaca &amp;. Entitasnya dipulihkan lebih dulu — kalau tidak,
+     * kalimat sesederhana Bacalah teks "Banjir" berikut! akan masuk ke
+     * bank soal dengan &quot; di badan pertanyaannya. Pemulihan dilakukan
+     * sebelum spasi dirapikan supaya &nbsp; ikut tertangkap aturan
+     * \x{00A0} di bawah.
+     */
+    protected function rapikan(string $teks): string
+    {
+        $teks = html_entity_decode($teks, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(preg_replace('/\x{00A0}|\s+/u', ' ', $teks));
     }
 
     /** @param array<int, string> $baris */
@@ -157,13 +190,7 @@ class ImportSoalWordService
         }
 
         if ($elemen instanceof Table) {
-            foreach ($elemen->getRows() as $row) {
-                foreach ($row->getCells() as $cell) {
-                    foreach ($cell->getElements() as $anak) {
-                        $this->kumpulkanTeks($anak, $baris);
-                    }
-                }
-            }
+            $this->kumpulkanTabel($elemen, $baris);
 
             return;
         }
@@ -185,6 +212,137 @@ class ImportSoalWordService
     }
 
     /**
+     * Terjemahkan satu tabel menjadi baris-baris naskah biasa.
+     *
+     * Hanya tabel dua kolom yang diterjemahkan, dan itu pun bukan semuanya:
+     * sebagian naskah memakai tabel sekadar sebagai tata letak, mis. opsi
+     * dipasang dua-dua per baris. Sel yang isinya sudah menerangkan dirinya
+     * sendiri ("A. Bandung") karena itu dibiarkan berdiri sebagai barisnya
+     * masing-masing, persis seperti pembacaan sebelum tabel dikenali.
+     *
+     * @param  array<int, string>  $baris
+     */
+    protected function kumpulkanTabel(Table $tabel, array &$baris): void
+    {
+        // Nomor butir hanya diakui sekali per butir. Tanpa pembatasan ini
+        // pasangan penjodohan yang sisi kirinya kebetulan angka — "1945 |
+        // Proklamasi" — akan dibaca sebagai awal soal baru.
+        $nomorTerpakai = false;
+
+        foreach ($tabel->getRows() as $row) {
+            $sel = [];
+
+            foreach ($row->getCells() as $cell) {
+                $isi = [];
+
+                foreach ($cell->getElements() as $anak) {
+                    $this->kumpulkanTeks($anak, $isi);
+                }
+
+                $isi = array_values(array_filter(
+                    array_map(fn ($t) => $this->rapikan((string) $t), $isi),
+                    fn ($t) => $t !== ''
+                ));
+
+                if ($isi !== []) {
+                    $sel[] = $isi;
+                }
+            }
+
+            if ($sel === []) {
+                continue;
+            }
+
+            if (count($sel) !== 2 || $this->selMenerangkanDiri($sel)) {
+                foreach ($sel as $isi) {
+                    foreach ($isi as $t) {
+                        $baris[] = $t;
+                    }
+                }
+
+                if ($this->barisPenanda($sel[0][0])) {
+                    $nomorTerpakai = false;
+                }
+
+                continue;
+            }
+
+            // Gambar dipisahkan dari teks: ia tetap menyusul sebagai barisnya
+            // sendiri supaya pengurai bisa menempelkannya ke opsi atau
+            // pertanyaan yang tepat.
+            $kiri = $ekor = [];
+
+            foreach ($sel[0] as $t) {
+                $this->barisGambar($t) ? $ekor[] = $t : $kiri[] = $t;
+            }
+
+            $kepala = '';
+            $sisa = [];
+
+            foreach ($sel[1] as $t) {
+                if ($kepala === '' && ! $this->barisGambar($t)) {
+                    $kepala = $t;
+
+                    continue;
+                }
+
+                $sisa[] = $t;
+            }
+
+            $teksKiri = implode(' ', $kiri);
+
+            if ($teksKiri === '') {
+                // Sel kiri kosong — lazimnya baris sambungan pada sel yang
+                // digabung. Isinya dipakai apa adanya.
+                $baris[] = $kepala;
+            } elseif (preg_match('/^(?:'.self::POLA_PENANDA.')$/iu', rtrim($teksKiri, ' :.'))) {
+                $baris[] = rtrim($teksKiri, ' :.').': '.$kepala;
+                $nomorTerpakai = false;
+            } elseif (preg_match('/^([A-Ha-h])[.)]?$/u', $teksKiri, $m)) {
+                $baris[] = strtoupper($m[1]).'. '.$kepala;
+            } elseif (! $nomorTerpakai && $kepala !== '' && preg_match('/^(\d{1,3})[.)]?$/u', $teksKiri, $m)) {
+                $baris[] = $m[1].'. '.$kepala;
+                $nomorTerpakai = true;
+            } else {
+                $baris[] = $teksKiri.' '.self::PEMISAH_JODOH.' '.$kepala;
+            }
+
+            foreach (array_merge($sisa, $ekor) as $t) {
+                $baris[] = $t;
+            }
+        }
+    }
+
+    /**
+     * Baris tabel yang selnya sudah berbentuk naskah utuh — "A. Bandung",
+     * "1. Ibu kota ..." — tidak perlu, dan tidak boleh, dipasangkan.
+     *
+     * @param  array<int, array<int, string>>  $sel
+     */
+    protected function selMenerangkanDiri(array $sel): bool
+    {
+        foreach ($sel as $isi) {
+            foreach ($isi as $t) {
+                if (preg_match('/^(?:[A-Ha-h]|\d{1,3})[.)]\s*\S/u', $t)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    protected function barisGambar(string $teks): bool
+    {
+        return (bool) preg_match('/^\[\[GAMBAR:[^\]]+\]\]$/', $teks);
+    }
+
+    protected function barisPenanda(string $teks): bool
+    {
+        return (bool) preg_match('/^(?:'.self::POLA_PENANDA.')\s*[:.]/iu', $teks);
+    }
+
+    /**
      * @param  array<int, string>  $baris
      * @return array{soal: array<int, array<string, mixed>>, galat: array<int, string>}
      */
@@ -193,6 +351,11 @@ class ImportSoalWordService
         $soal = [];
         $galat = [];
         $blok = null;
+
+        // Pada naskah bertabel, "JENIS SOAL : ..." berdiri di baris kepala
+        // tabel — sebelum nomor butirnya. Penanda itu disimpan dulu, lalu
+        // dipasangkan ke butir yang menyusul.
+        $jenisTertunda = null;
 
         foreach ($baris as $teks) {
             // --- Awal butir soal baru: "1." / "1)" di awal baris ---
@@ -203,10 +366,34 @@ class ImportSoalWordService
                     if ($blok !== null) {
                         $this->tutupBlok($blok, $soal, $galat);
                     }
-                    $blok = $this->blokBaru((int) $m[1], $m[2]);
+                    $blok = $this->blokBaru((int) $m[1], $m[2], $jenisTertunda);
+                    $jenisTertunda = null;
 
                     continue;
                 }
+            }
+
+            // --- Jenis soal: boleh menyusul maupun mendahului nomor butirnya ---
+            //
+            // Naskah biasa menulis "JENIS: essay" tepat di bawah nomor soal,
+            // sedangkan naskah bertabel menaruh "JENIS SOAL : ..." di baris
+            // kepala tabel — yaitu sesudah butir sebelumnya selesai. Keduanya
+            // dibedakan dari keadaan butir yang sedang dibaca: selama butir itu
+            // belum punya opsi, pasangan, maupun kunci, penanda jenis masih
+            // miliknya; sesudah itu, penanda jenis sudah milik butir berikutnya.
+            if (preg_match('/^JENIS(?:\s*SOAL)?\s*[:.]\s*(.+)$/iu', $teks, $m)) {
+                $masihKosong = $blok !== null
+                    && $blok['opsi'] === []
+                    && $blok['jodoh'] === []
+                    && $blok['kunci'] === '';
+
+                if ($masihKosong) {
+                    $blok['jenis_paksa'] = trim($m[1]);
+                } else {
+                    $jenisTertunda = trim($m[1]);
+                }
+
+                continue;
             }
 
             if ($blok === null) {
@@ -214,8 +401,11 @@ class ImportSoalWordService
             }
 
             // --- Penanda eksplisit ---
-            if (preg_match('/^JENIS\s*[:.]\s*(.+)$/iu', $teks, $m)) {
-                $blok['jenis_paksa'] = trim($m[1]);
+            if (preg_match('/^KATA\s*KUNCI\s*[:.]\s*(.*)$/iu', $teks, $m)) {
+                $blok['kata_kunci'] = array_values(array_filter(
+                    array_map('trim', explode(',', $m[1])),
+                    fn ($k) => $k !== ''
+                ));
 
                 continue;
             }
@@ -281,6 +471,16 @@ class ImportSoalWordService
                 continue;
             }
 
+            // --- Daftar pilihan bawaan soal benar/salah ---
+            // Naskah bertabel mencantumkan "benar" dan "salah" sebagai dua
+            // baris tersendiri, sekadar memperlihatkan pilihan yang akan
+            // dilihat siswa. Keduanya bukan lanjutan pertanyaan, dan kuncinya
+            // tetap diambil dari baris JAWABAN.
+            if ($this->kodeJenis((string) $blok['jenis_paksa']) === Soal::BENAR_SALAH
+                && $this->nilaiBenarSalah($teks) !== null) {
+                continue;
+            }
+
             // --- Selain itu: lanjutan teks pertanyaan ---
             $blok['opsi_terakhir'] = null;
             $blok['pertanyaan'] = trim($blok['pertanyaan'].' '.$teks);
@@ -298,7 +498,7 @@ class ImportSoalWordService
     }
 
     /** @return array<string, mixed> */
-    protected function blokBaru(int $nomor, string $pertanyaan): array
+    protected function blokBaru(int $nomor, string $pertanyaan, ?string $jenisPaksa = null): array
     {
         return [
             'nomor' => $nomor,
@@ -307,11 +507,12 @@ class ImportSoalWordService
             'opsi_terakhir' => null,
             'jodoh' => [],
             'kunci' => '',
+            'kata_kunci' => [],
             'pembahasan' => null,
             'bobot' => 1.0,
             'level_kognitif' => null,
             'tingkat_kesukaran' => null,
-            'jenis_paksa' => null,
+            'jenis_paksa' => $jenisPaksa,
         ];
     }
 
@@ -362,27 +563,56 @@ class ImportSoalWordService
         ];
     }
 
+    /**
+     * Terjemahkan nama jenis yang ditulis guru menjadi kode jenis soal.
+     *
+     * Penulisannya dibiarkan bebas, karena begitulah naskah datang dari
+     * sekolah: "PILIHAN GANDA KOMPLEKS (JAWABAN LEBIH DARI 1)",
+     * "SALAH/BENAR (BIASA)", "Essay / Uraian", "pg_kompleks". Yang dibaca
+     * karena itu bukan seluruh kalimatnya, melainkan kata-kata penandanya —
+     * keterangan tambahan dalam kurung boleh ada, boleh tidak, dan urutan
+     * "benar/salah" maupun "salah/benar" sama-sama diterima.
+     */
+    protected function kodeJenis(string $teks): ?string
+    {
+        $kata = ' '.trim(preg_replace('/[^a-z]+/', ' ', mb_strtolower(trim($teks)))).' ';
+
+        $ada = fn (string ...$cari) => array_reduce(
+            $cari,
+            fn ($hasil, $k) => $hasil || str_contains($kata, " {$k} "),
+            false
+        );
+
+        // Kata "kompleks" diperiksa lebih dulu: tanpa itu "BENAR/SALAH
+        // (KOMPLEKS)" terbaca sebagai benar/salah biasa, dan seluruh daftar
+        // pernyataannya hilang menjadi lanjutan teks pertanyaan.
+        $kompleks = $ada('kompleks', 'komplek');
+
+        return match (true) {
+            $ada('jodoh', 'penjodohan', 'menjodohkan') => Soal::PENJODOHAN,
+            $ada('essay', 'esai', 'uraian') => Soal::ESSAY,
+            // "pilihan ganda" diperiksa sebelum "benar/salah" supaya
+            // keterangan seperti "(pilih jawaban yang benar)" tidak membelokkan
+            // soal pilihan ganda menjadi soal benar/salah.
+            $kompleks && $ada('pg', 'ganda') => Soal::PG_KOMPLEKS,
+            $kompleks && $ada('benar', 'salah', 'bs') => Soal::BENAR_SALAH_KOMPLEKS,
+            $ada('pg', 'ganda') => Soal::PG,
+            $ada('benar', 'salah', 'bs') => Soal::BENAR_SALAH,
+            default => null,
+        };
+    }
+
     /** @param array<string, mixed> $blok */
     protected function tentukanJenis(array $blok): string
     {
         if ($blok['jenis_paksa']) {
-            $alias = [
-                'pg' => Soal::PG, 'pilihan ganda' => Soal::PG,
-                'pg kompleks' => Soal::PG_KOMPLEKS, 'pg_kompleks' => Soal::PG_KOMPLEKS,
-                'pilihan ganda kompleks' => Soal::PG_KOMPLEKS,
-                'essay' => Soal::ESSAY, 'esai' => Soal::ESSAY, 'uraian' => Soal::ESSAY,
-                'penjodohan' => Soal::PENJODOHAN, 'menjodohkan' => Soal::PENJODOHAN,
-                'benar salah' => Soal::BENAR_SALAH, 'benar_salah' => Soal::BENAR_SALAH,
-                'benar salah kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
-                'benar_salah_kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
-                'bs kompleks' => Soal::BENAR_SALAH_KOMPLEKS,
-            ];
-            $kunci = strtolower(trim($blok['jenis_paksa']));
-            if (! isset($alias[$kunci])) {
+            $jenis = $this->kodeJenis((string) $blok['jenis_paksa']);
+
+            if ($jenis === null) {
                 throw new \InvalidArgumentException("penanda JENIS \"{$blok['jenis_paksa']}\" tidak dikenali.");
             }
 
-            return $alias[$kunci];
+            return $jenis;
         }
 
         if ($blok['jodoh'] !== []) {
@@ -474,7 +704,12 @@ class ImportSoalWordService
                 throw new \InvalidArgumentException('soal essay belum punya baris JAWABAN sebagai kunci penilaian.');
             }
 
-            return [null, ['jawaban' => RumusLatex::keHtml($kunciMentah), 'kata_kunci' => []]];
+            return [null, [
+                'jawaban' => RumusLatex::keHtml($kunciMentah),
+                // Kata kunci membantu guru menilai cepat: bagian jawaban yang
+                // wajib muncul ditulis "KATA KUNCI: evaporasi, kondensasi".
+                'kata_kunci' => array_values((array) $blok['kata_kunci']),
+            ]];
         }
 
         if ($jenis === Soal::PENJODOHAN) {

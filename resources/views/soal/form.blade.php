@@ -76,6 +76,9 @@
                         pecahan bertingkat, huruf Arab, dan gambar disisipkan lewat papan di bawah.
                     </div>
 
+                    {{-- Menawarkan memindahkan opsi A, B, C, ... yang ikut tertempel
+                         di sini ke kolom Opsi Jawaban masing-masing. --}}
+                    @include('soal.partials.pecah-opsi')
                 </div>
             </div>
 

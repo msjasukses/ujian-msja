@@ -206,7 +206,41 @@
                     </a>
                 </div>
                 <div class="card-body small">
-                    <p class="mb-2">Tulis soal seperti naskah biasa. Parser mengenali pola berikut:</p>
+                    <p class="mb-2">
+                        Naskah boleh ditulis <strong>bertabel</strong> — satu tabel per butir, bentuk yang
+                        biasa dipakai karena rapi saat dicetak. Berkas contoh di atas memakai bentuk ini:
+                    </p>
+                    <table class="table table-bordered table-sm mb-2" style="font-size:.78rem">
+                        <tbody>
+                            <tr><td colspan="2" class="fw-semibold">JENIS SOAL : PILIHAN GANDA</td></tr>
+                            <tr><td style="width:3rem">1</td><td>Ibu kota Jawa Barat adalah ...</td></tr>
+                            <tr><td>A</td><td>Bandung</td></tr>
+                            <tr><td>B</td><td>Semarang</td></tr>
+                            <tr><td colspan="2" class="fw-semibold">JAWABAN : A</td></tr>
+                            <tr><td colspan="2" class="fw-semibold">BOBOT : 1</td></tr>
+                        </tbody>
+                    </table>
+                    <ul class="mb-2 ps-3">
+                        <li>
+                            Baris kepala menyebut jenisnya: <code>PILIHAN GANDA</code>,
+                            <code>PILIHAN GANDA KOMPLEKS</code>, <code>PENJODOHAN</code>,
+                            <code>BENAR/SALAH</code>, <code>BENAR/SALAH (KOMPLEKS)</code>, atau
+                            <code>ESSAY</code>. Keterangan dalam kurung boleh ditambahkan.
+                        </li>
+                        <li>Kolom kiri: nomor butir, lalu huruf opsi. Kolom kanan: isinya.</li>
+                        <li><strong>Penjodohan</strong>: kolom kiri pernyataan, kolom kanan pasangannya.</li>
+                        <li>
+                            <strong>Benar/salah kompleks</strong>: kolom kiri pernyataan, kolom kanan
+                            <code>benar</code> atau <code>salah</code>.
+                        </li>
+                        <li>
+                            <strong>Essay</strong>: tidak punya baris opsi. Yang wajib hanya
+                            <code>JAWABAN :</code> sebagai acuan penilaian, dan boleh ditambah
+                            <code>KATA KUNCI : evaporasi, kondensasi</code>.
+                        </li>
+                    </ul>
+
+                    <p class="mb-2">Naskah biasa tanpa tabel tetap diterima:</p>
 <pre class="bg-light border rounded p-2 mb-2" style="font-size:.78rem">1. Ibu kota Jawa Barat adalah ...
 A. Bandung
 B. Semarang
@@ -226,6 +260,10 @@ PEMBAHASAN: Bandung ibu kota Jabar.</pre>
                             <strong>benar salah kompleks</strong>.
                         </li>
                         <li>Untuk memaksa jenis, tambahkan baris <code>JENIS: essay</code>.</li>
+                        <li>
+                            Essay: <code>JAWABAN:</code> menjadi kunci penilaian, dan
+                            <code>KATA KUNCI: a, b, c</code> menjadi daftar kata yang dicari saat memeriksa.
+                        </li>
                         <li>
                             <strong>Gambar</strong> yang tertanam di naskah ikut terbawa. Gambar menempel pada
                             bagian yang ditulis tepat sebelumnya: bila baris sebelumnya sebuah opsi, gambar itu
