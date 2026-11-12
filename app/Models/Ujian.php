@@ -104,6 +104,11 @@ class Ujian extends Model
         return $this->hasMany(UjianKelas::class);
     }
 
+    public function kelasMovingTerpasang(): HasMany
+    {
+        return $this->hasMany(UjianKelasMoving::class);
+    }
+
     public function peserta(): HasMany
     {
         return $this->hasMany(UjianPeserta::class);
@@ -151,10 +156,31 @@ class Ujian extends Model
             : RombonganBelajar::whereIn('id', $ids)->orderBy('tingkat')->orderBy('nama_rombel')->get();
     }
 
-    /** Ujian kelas moving: pesertanya dipilih per-siswa, bukan per kelas. */
+    /** Ujian kelas moving: pesertanya dipilih per-siswa, bukan per rombel. */
     public function getKelasMovingAttribute(): bool
     {
         return $this->mode_peserta === self::MODE_MANUAL;
+    }
+
+    /** Id kelas moving yang dipasang pada ujian ini. @return array<int,int> */
+    public function kelasMovingIds(): array
+    {
+        return $this->kelasMovingTerpasang()->pluck('kelas_moving_id')->map('intval')->all();
+    }
+
+    /**
+     * Kelas moving peserta ujian ini, beserta anggotanya. Kosong berarti
+     * pesertanya murni dipilih guru satu per satu.
+     *
+     * @return \Illuminate\Support\Collection<int, KelasMoving>
+     */
+    public function kelasMovingDipakai(): \Illuminate\Support\Collection
+    {
+        $ids = $this->kelasMovingIds();
+
+        return $ids === []
+            ? collect()
+            : KelasMoving::with('anggota')->whereIn('id', $ids)->orderBy('nama_kelas_moving')->get();
     }
 
     /** Ujian sedang berada dalam jendela waktu pelaksanaan. */

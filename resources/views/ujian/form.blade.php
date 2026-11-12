@@ -7,6 +7,17 @@
 @php
     $rombel = Referensi::rombel(Pengguna::guruId());
 
+    // Semua kelas moving yang mungkin dipakai paket-paket ini; yang tampil
+    // disaring JS mengikuti mapel paket yang sedang dipilih.
+    $semuaKelasMoving = $daftarPaket
+        ->pluck('mata_pelajaran_id')
+        ->filter()
+        ->unique()
+        ->flatMap(fn ($mapelId) => Referensi::kelasMoving($mapelId))
+        ->unique('id')
+        ->sortBy('nama_kelas_moving')
+        ->values();
+
     // Peta untuk mengerucutkan centang kelas mengikuti mapel paket soal yang
     // dipilih — pada kelas moving tidak semua rombel mengambil mapel sama.
     // "rombel" null berarti tidak bisa dikerucutkan; "alasan" menerangkan
@@ -20,6 +31,7 @@
             'mapel' => $p->mataPelajaran->nama_mapel ?? null,
             'alasan' => $alasan,
             'moving' => $moving->map(fn ($km) => $km->nama_lengkap.' ('.$km->anggota->count().' siswa)')->values(),
+            'movingIds' => $moving->pluck('id')->map('intval')->values(),
             'rombel' => $alasan
                 ? null
                 : Referensi::rombelMapel($p->mata_pelajaran_id, Pengguna::guruId())
@@ -147,10 +159,41 @@
                         @error('mode_peserta')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                         <div class="form-text" id="catatan-moving">
                             Kelas moving dipakai bila pesertanya campuran siswa dari beberapa kelas yang mengambil
-                            mata pelajaran yang sama. Siswanya dipilih satu per satu di halaman Peserta; kelas di
-                            bawah ini boleh dikosongkan.
+                            mata pelajaran yang sama. Centang kelas movingnya di bawah ini, atau pilih siswanya
+                            satu per satu di halaman Peserta; daftar kelas biasa boleh dikosongkan.
                         </div>
                         <div class="form-text text-success-emphasis d-none" id="catatan-kelas-moving-dc"></div>
+                    </div>
+
+                    {{-- Kelas moving dari Data Center: rombongan lintas rombel yang
+                         mengambil mapel paket soal ini. Mencentangnya langsung
+                         mendaftarkan seluruh anggotanya sebagai peserta. --}}
+                    <div class="mb-3 d-none" id="blok-kelas-moving">
+                        <div class="fw-semibold small mb-2">Kelas moving peserta</div>
+                        <div class="row g-2">
+                            @foreach ($semuaKelasMoving as $km)
+                                <div class="col-12 col-md-6 col-xl-4 kolom-kelas-moving d-none"
+                                     data-kelas-moving="{{ $km->id }}">
+                                    <div class="form-check border rounded p-2 ps-4">
+                                        <input class="form-check-input kelas-moving-cb" type="checkbox"
+                                               name="kelas_moving_id[]" value="{{ $km->id }}"
+                                               id="km-{{ $km->id }}"
+                                               @checked(in_array($km->id, old('kelas_moving_id', $kelasMovingTerpilih)))>
+                                        <label class="form-check-label small" for="km-{{ $km->id }}">
+                                            {{ $km->nama_kelas_moving }}
+                                            <span class="d-block text-muted">
+                                                {{ $km->anggota->count() }} siswa{{ $km->ruang ? ' · ruang '.$km->ruang : '' }}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text mt-2">
+                            Anggotanya langsung terdaftar sebagai peserta dan bisa disinkronkan ulang bila
+                            susunan kelas moving di Data Center berubah. Biarkan kosong bila pesertanya mau
+                            dipilih sendiri satu per satu di halaman Peserta.
+                        </div>
                     </div>
 
                     <div class="fw-semibold small mb-2" id="label-kelas">Kelas peserta</div>
@@ -361,30 +404,50 @@
             }
         }
 
-        // Beri tahu kalau mapel paket ini sudah punya kelas moving di Data
-        // Center — pesertanya tinggal diambil dari sana di halaman Peserta.
+        // Centang kelas moving hanya masuk akal pada mode kelas moving, dan
+        // hanya untuk kelas moving bermapel sama dengan paket soalnya.
         const catatanDc = document.getElementById('catatan-kelas-moving-dc');
+        const blokMoving = document.getElementById('blok-kelas-moving');
 
-        function segarkanKelasMoving() {
-            if (! catatanDc) return;
-
+        function segarkanKelasMoving(muatAwal) {
             const info = paket ? infoPaket[paket.value] : null;
             const daftar = info && info.moving ? info.moving : [];
+            const ids = info && info.movingIds ? info.movingIds : [];
+            const modeMoving = document.querySelector('.mode-peserta:checked')?.value === 'manual';
 
-            catatanDc.classList.toggle('d-none', daftar.length === 0);
-            catatanDc.textContent = daftar.length
-                ? 'Mata pelajaran ini sudah punya kelas moving di Data Center: ' + daftar.join(', ')
-                  + '. Anggotanya langsung muncul sebagai kandidat di halaman Peserta.'
-                : '';
+            if (catatanDc) {
+                const tampil = daftar.length > 0 && ! modeMoving;
+                catatanDc.classList.toggle('d-none', ! tampil);
+                catatanDc.textContent = tampil
+                    ? 'Mata pelajaran ini punya kelas moving di Data Center: ' + daftar.join(', ')
+                      + '. Pilih mode kelas moving untuk memakainya.'
+                    : '';
+            }
+
+            if (! blokMoving) return;
+
+            blokMoving.classList.toggle('d-none', ! (modeMoving && ids.length > 0));
+
+            document.querySelectorAll('.kolom-kelas-moving').forEach(kolom => {
+                const cocok = ids.includes(parseInt(kolom.dataset.kelasMoving, 10));
+                const cb = kolom.querySelector('.kelas-moving-cb');
+                // Seperti centang kelas, pilihan lama tidak dilepas saat muat.
+                const simpan = muatAwal && cb.checked;
+                kolom.classList.toggle('d-none', ! (cocok || simpan));
+                if (! cocok && ! simpan && cb.checked) cb.checked = false;
+            });
         }
 
-        if (paket) paket.addEventListener('change', () => {
-            segarkanKelas(false);
-            segarkanKelasMoving();
-        });
+        function segarkanSemua(muatAwal) {
+            segarkanKelas(muatAwal);
+            segarkanKelasMoving(muatAwal);
+        }
 
-        segarkanKelas(true);
-        segarkanKelasMoving();
+        if (paket) paket.addEventListener('change', () => segarkanSemua(false));
+        document.querySelectorAll('.mode-peserta').forEach(r =>
+            r.addEventListener('change', () => segarkanKelasMoving(false)));
+
+        segarkanSemua(true);
     })();
 
     // Keterangan kelas menyesuaikan mode peserta: pada kelas moving daftar

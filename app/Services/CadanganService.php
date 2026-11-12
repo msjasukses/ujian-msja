@@ -57,7 +57,7 @@ class CadanganService
      */
     public const TABEL = [
         'users', 'pengaturan', 'topik', 'soal', 'paket_soal', 'paket_soal_detail',
-        'ujian', 'ujian_kelas', 'ujian_peserta', 'ujian_jawaban', 'ujian_log',
+        'ujian', 'ujian_kelas', 'ujian_kelas_moving', 'ujian_peserta', 'ujian_jawaban', 'ujian_log',
         'tindak_lanjut', 'login_attempts',
     ];
 

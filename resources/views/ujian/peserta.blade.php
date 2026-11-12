@@ -9,7 +9,10 @@
     <div class="card-body d-flex flex-wrap gap-2 align-items-center justify-content-between">
         <div class="d-flex flex-wrap gap-3 align-items-center">
             @if ($ujian->kelas_moving)
-                <span class="badge text-bg-info"><i class="bi bi-shuffle me-1"></i>Kelas moving</span>
+                @php $kmDipakai = $ujian->kelasMovingDipakai(); @endphp
+                <span class="badge text-bg-info" title="{{ $kmDipakai->pluck('nama_kelas_moving')->implode(', ') }}">
+                    <i class="bi bi-shuffle me-1"></i>Kelas moving{{ $kmDipakai->isNotEmpty() ? ': '.$kmDipakai->pluck('nama_kelas_moving')->implode(', ') : '' }}
+                </span>
             @endif
             <span class="badge badge-soft fs-6">
                 Token: <code class="user-select-all">{{ $ujian->token ?: 'tanpa token' }}</code>
@@ -35,13 +38,13 @@
             <a href="{{ route('ujian.peserta.pilih', $ujian) }}" class="btn btn-sm btn-primary">
                 <i class="bi bi-person-plus me-1"></i>Tambah Peserta
             </a>
-            @unless ($ujian->kelas_moving)
+            @if (! $ujian->kelas_moving || $ujian->kelasMovingIds() !== [])
                 <form method="POST" action="{{ route('ujian.peserta.sinkron', $ujian) }}"
                       data-konfirmasi="Sinkronkan daftar peserta dengan data kelas terbaru di Data Center?">
                     @csrf
                     <button class="btn btn-sm btn-success"><i class="bi bi-arrow-repeat me-1"></i>Sinkron Peserta</button>
                 </form>
-            @endunless
+            @endif
             <a href="{{ route('ujian.peserta.export', $ujian) }}" class="btn btn-sm btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i>Export Daftar Hadir
             </a>

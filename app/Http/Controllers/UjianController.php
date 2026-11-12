@@ -9,6 +9,7 @@ use App\Models\SiswaRombel;
 use App\Models\TahunAjaran;
 use App\Models\Ujian;
 use App\Models\UjianKelas;
+use App\Models\UjianKelasMoving;
 use App\Models\UjianPeserta;
 use App\Services\RegistrasiPesertaService;
 use App\Support\ExcelExport;
@@ -71,6 +72,7 @@ class UjianController extends Controller
         return view('ujian.form', [
             'item' => $item,
             'kelasTerpilih' => [],
+            'kelasMovingTerpilih' => [],
             'daftarPaket' => $this->daftarPaket(),
         ]);
     }
@@ -80,21 +82,24 @@ class UjianController extends Controller
         $ujian = DB::transaction(function () use ($r) {
             $ujian = Ujian::create($this->validasi($r) + ['guru_id' => Pengguna::guruId()]);
             $this->simpanKelas($ujian, $r->input('rombongan_belajar_id', []));
+            $this->simpanKelasMoving($ujian, $r->input('kelas_moving_id', []));
 
             return $ujian;
         });
 
-        // Ujian kelas moving pesertanya dipilih per siswa, jadi guru langsung
-        // diantar ke halaman pemilihan alih-alih menunggu tarikan dari kelas.
-        if ($ujian->kelas_moving) {
+        $hasil = $this->registrasi->sinkronkan($ujian);
+
+        // Kelas moving tanpa rombongan terpasang berarti pesertanya dipilih
+        // per siswa — guru langsung diantar ke halaman pemilihan.
+        if ($ujian->kelas_moving && $ujian->kelasMovingIds() === []) {
             return redirect()->route('ujian.peserta.pilih', $ujian)
                 ->with('success', 'Ujian kelas moving dibuat. Pilih siswa pesertanya di halaman ini.');
         }
 
-        $hasil = $this->registrasi->sinkronkan($ujian);
+        $dari = $ujian->kelas_moving ? 'kelas moving yang dipilih' : 'kelas yang dipilih';
 
         return redirect()->route('ujian.peserta', $ujian)
-            ->with('success', "Ujian dibuat dan {$hasil['ditambah']} peserta terdaftar otomatis dari kelas yang dipilih.");
+            ->with('success', "Ujian dibuat dan {$hasil['ditambah']} peserta terdaftar otomatis dari {$dari}.");
     }
 
     public function edit(Ujian $ujian)
@@ -102,6 +107,7 @@ class UjianController extends Controller
         return view('ujian.form', [
             'item' => $ujian,
             'kelasTerpilih' => $ujian->rombelIds(),
+            'kelasMovingTerpilih' => $ujian->kelasMovingIds(),
             'daftarPaket' => $this->daftarPaket(),
         ]);
     }
@@ -120,6 +126,7 @@ class UjianController extends Controller
         DB::transaction(function () use ($ujian, $data, $r) {
             $ujian->update($data);
             $this->simpanKelas($ujian, $r->input('rombongan_belajar_id', []));
+            $this->simpanKelasMoving($ujian, $r->input('kelas_moving_id', []));
         });
 
         $this->registrasi->sinkronkan($ujian);
@@ -167,12 +174,12 @@ class UjianController extends Controller
 
     public function sinkronPeserta(Ujian $ujian)
     {
-        if ($ujian->kelas_moving) {
+        if ($ujian->kelas_moving && $ujian->kelasMovingIds() === []) {
             return back()->with('error',
-                'Ujian ini memakai peserta kelas moving, jadi pesertanya dipilih per siswa. Pakai tombol "Tambah Peserta".');
+                'Ujian ini belum memasang kelas moving, jadi pesertanya dipilih per siswa. Pakai tombol "Tambah Peserta".');
         }
 
-        if ($ujian->rombelIds() === []) {
+        if (! $ujian->kelas_moving && $ujian->rombelIds() === []) {
             return back()->with('error', 'Belum ada kelas peserta yang dipilih pada ujian ini.');
         }
 
@@ -387,6 +394,27 @@ class UjianController extends Controller
             ->exists();
     }
 
+    /**
+     * Pasang kelas moving pilihan pada ujian. Yang disimpan hanya kelas moving
+     * yang benar-benar ada dan sesuai mata pelajaran ujian, supaya rombongan
+     * peserta tidak melenceng dari naskahnya.
+     *
+     * @param  array<int, int|string>  $kelasMovingIds
+     */
+    protected function simpanKelasMoving(Ujian $ujian, array $kelasMovingIds): void
+    {
+        $boleh = Referensi::kelasMoving($ujian->mata_pelajaran_id)->pluck('id')->map('intval')->all();
+        $dipilih = array_values(array_intersect(array_map('intval', $kelasMovingIds), $boleh));
+
+        UjianKelasMoving::where('ujian_id', $ujian->id)
+            ->whereNotIn('kelas_moving_id', $dipilih ?: [0])
+            ->delete();
+
+        foreach ($dipilih as $id) {
+            UjianKelasMoving::firstOrCreate(['ujian_id' => $ujian->id, 'kelas_moving_id' => $id]);
+        }
+    }
+
     /** @param array<int, int|string> $rombelIds */
     protected function simpanKelas(Ujian $ujian, array $rombelIds): void
     {
@@ -431,6 +459,8 @@ class UjianController extends Controller
                 ? 'nullable|array'
                 : 'required|array|min:1',
             'rombongan_belajar_id.*' => 'integer',
+            'kelas_moving_id' => 'nullable|array',
+            'kelas_moving_id.*' => 'integer',
         ], [], [
             'paket_soal_id' => 'Paket soal',
             'rombongan_belajar_id' => 'Kelas peserta',
@@ -443,7 +473,7 @@ class UjianController extends Controller
         // Mapel ujian selalu mengikuti paket soalnya agar laporan per mapel konsisten.
         $data['mata_pelajaran_id'] = PaketSoal::find($data['paket_soal_id'])?->mata_pelajaran_id;
 
-        unset($data['rombongan_belajar_id']);
+        unset($data['rombongan_belajar_id'], $data['kelas_moving_id']);
 
         return $data + [
             'tampilkan_hasil' => $r->boolean('tampilkan_hasil'),

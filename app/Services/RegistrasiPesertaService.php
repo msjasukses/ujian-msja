@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\KelasMovingSiswa;
 use App\Models\Siswa;
 use App\Models\SiswaRombel;
 use App\Models\TahunAjaran;
 use App\Models\Ujian;
 use App\Models\UjianPeserta;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -26,44 +28,43 @@ class RegistrasiPesertaService
      * menghapusnya berarti membuang jawaban yang sudah ada, atau ia memang
      * ditambahkan guru satu per satu (sumber "manual", peserta kelas moving).
      *
-     * Pada ujian kelas moving pesertanya sepenuhnya dipilih per-siswa, jadi
-     * tidak ada yang ditarik maupun dicabut dari kelas di sini.
+     * Pada ujian kelas moving, rombongannya diambil dari kelas moving yang
+     * dipasang pada ujian. Bila tidak ada satu pun kelas moving terpasang,
+     * pesertanya murni pilihan guru sehingga tidak ada yang ditarik maupun
+     * dicabut di sini.
      *
      * @return array{ditambah:int, dicabut:int, dipertahankan:int, total:int}
      */
     public function sinkronkan(Ujian $ujian): array
     {
-        if ($ujian->kelas_moving) {
+        $tahunAjaranId = TahunAjaran::aktif()?->id;
+
+        $calon = $ujian->kelas_moving
+            ? $this->calonDariKelasMoving($ujian, $tahunAjaranId)
+            : $this->calonDariRombel($ujian, $tahunAjaranId);
+
+        if ($calon === null) {
             $total = $ujian->peserta()->count();
 
             return ['ditambah' => 0, 'dicabut' => 0, 'dipertahankan' => $total, 'total' => $total];
         }
 
-        $rombelIds = $ujian->rombelIds();
-        $tahunAjaranId = TahunAjaran::aktif()?->id;
-
-        $penempatan = SiswaRombel::whereIn('rombongan_belajar_id', $rombelIds)
-            ->when($tahunAjaranId, fn ($q) => $q->where('tahun_ajaran_id', $tahunAjaranId))
-            ->get();
-
         // Hanya siswa berstatus aktif yang didaftarkan.
         $siswaAktif = Siswa::aktif()
-            ->whereIn('id', $penempatan->pluck('siswa_id'))
+            ->whereIn('id', $calon->keys()->all() ?: [0])
             ->pluck('nis', 'id');
 
-        $seharusnya = $penempatan
-            ->filter(fn ($p) => $siswaAktif->has($p->siswa_id))
-            ->keyBy('siswa_id');
+        $seharusnya = $calon->filter(fn ($rombelId, $siswaId) => $siswaAktif->has($siswaId));
 
         $sekarang = $ujian->peserta()->get()->keyBy('siswa_id');
 
         $ditambah = $dicabut = 0;
 
         DB::transaction(function () use ($ujian, $seharusnya, $sekarang, $siswaAktif, &$ditambah, &$dicabut) {
-            foreach ($seharusnya as $siswaId => $p) {
+            foreach ($seharusnya as $siswaId => $rombelId) {
                 if ($sekarang->has($siswaId)) {
                     // Ikut perbarui kelasnya bila siswa pindah rombel.
-                    $sekarang[$siswaId]->update(['rombongan_belajar_id' => $p->rombongan_belajar_id]);
+                    $sekarang[$siswaId]->update(['rombongan_belajar_id' => $rombelId]);
 
                     continue;
                 }
@@ -71,7 +72,7 @@ class RegistrasiPesertaService
                 UjianPeserta::create([
                     'ujian_id' => $ujian->id,
                     'siswa_id' => $siswaId,
-                    'rombongan_belajar_id' => $p->rombongan_belajar_id,
+                    'rombongan_belajar_id' => $rombelId,
                     'sumber' => UjianPeserta::SUMBER_KELAS,
                     'nomor_peserta' => $siswaAktif[$siswaId] ?: null,
                     'status' => UjianPeserta::TERDAFTAR,
@@ -104,6 +105,48 @@ class RegistrasiPesertaService
             'dipertahankan' => $total - $ditambah,
             'total' => $total,
         ];
+    }
+
+    /**
+     * Calon peserta dari rombel yang dipasang pada ujian.
+     *
+     * @return Collection<int, int> siswa_id => rombel_id
+     */
+    protected function calonDariRombel(Ujian $ujian, ?int $tahunAjaranId): Collection
+    {
+        return SiswaRombel::whereIn('rombongan_belajar_id', $ujian->rombelIds() ?: [0])
+            ->when($tahunAjaranId, fn ($q) => $q->where('tahun_ajaran_id', $tahunAjaranId))
+            ->pluck('rombongan_belajar_id', 'siswa_id')
+            ->map('intval');
+    }
+
+    /**
+     * Calon peserta dari kelas moving yang dipasang pada ujian. Rombel asal
+     * siswa tetap dicatat supaya rekap nilai per kelas tetap benar.
+     *
+     * Null berarti ujian ini tidak memasang kelas moving sama sekali —
+     * pesertanya pilihan guru, bukan urusan sinkron.
+     *
+     * @return Collection<int, int|null>|null
+     */
+    protected function calonDariKelasMoving(Ujian $ujian, ?int $tahunAjaranId): ?Collection
+    {
+        $kelasMovingIds = $ujian->kelasMovingIds();
+
+        if ($kelasMovingIds === []) {
+            return null;
+        }
+
+        $siswaIds = KelasMovingSiswa::whereIn('kelas_moving_id', $kelasMovingIds)
+            ->pluck('siswa_id')
+            ->map('intval')
+            ->unique();
+
+        $rombel = SiswaRombel::whereIn('siswa_id', $siswaIds->all() ?: [0])
+            ->when($tahunAjaranId, fn ($q) => $q->where('tahun_ajaran_id', $tahunAjaranId))
+            ->pluck('rombongan_belajar_id', 'siswa_id');
+
+        return $siswaIds->mapWithKeys(fn ($id) => [$id => $rombel->get($id) ? (int) $rombel->get($id) : null]);
     }
 
     /**

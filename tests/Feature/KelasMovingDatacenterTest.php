@@ -10,8 +10,10 @@ use App\Models\SiswaRombel;
 use App\Models\Soal;
 use App\Models\TahunAjaran;
 use App\Models\Ujian;
+use App\Models\UjianKelasMoving;
 use App\Models\UjianPeserta;
 use App\Models\User;
+use App\Services\RegistrasiPesertaService;
 use App\Support\Referensi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -141,6 +143,94 @@ class KelasMovingDatacenterTest extends TestCase
             ->assertDontSee('Kandidat diambil dari');
     }
 
+    public function test_kelas_moving_dipasang_dari_form_mendaftarkan_anggotanya(): void
+    {
+        $mapelId = $this->kelasMoving->mata_pelajaran_id;
+        $paket = $this->paket($mapelId);
+
+        $this->post('/ujian', $this->formUjian($paket->id, [
+            'mode_peserta' => Ujian::MODE_MANUAL,
+            'kelas_moving_id' => [$this->kelasMoving->id],
+        ]))->assertSessionHasNoErrors();
+
+        $ujian = Ujian::where('kode_ujian', 'KMF-1')->firstOrFail();
+        $anggotaAktif = Siswa::aktif()->whereIn('id', $this->kelasMoving->siswaIds())->pluck('id');
+
+        $this->assertSame([$this->kelasMoving->id], $ujian->kelasMovingIds());
+        $this->assertEqualsCanonicalizing(
+            $anggotaAktif->all(),
+            $ujian->peserta()->pluck('siswa_id')->map('intval')->all()
+        );
+    }
+
+    public function test_kelas_moving_mapel_lain_tidak_bisa_dipasang(): void
+    {
+        // Rombongan harus sesuai naskahnya: kelas moving mapel lain ditolak.
+        $mapelLain = Referensi::mapel()->first(fn ($m) => (int) $m->id !== (int) $this->kelasMoving->mata_pelajaran_id);
+        $paket = $this->paket((int) $mapelLain->id);
+
+        $this->post('/ujian', $this->formUjian($paket->id, [
+            'mode_peserta' => Ujian::MODE_MANUAL,
+            'kelas_moving_id' => [$this->kelasMoving->id],
+        ]))->assertSessionHasNoErrors();
+
+        $ujian = Ujian::where('kode_ujian', 'KMF-1')->firstOrFail();
+
+        $this->assertSame([], $ujian->kelasMovingIds());
+    }
+
+    public function test_sinkron_mengikuti_susunan_kelas_moving(): void
+    {
+        $ujian = $this->ujian($this->kelasMoving->mata_pelajaran_id);
+        UjianKelasMoving::create(['ujian_id' => $ujian->id, 'kelas_moving_id' => $this->kelasMoving->id]);
+
+        $hasil = app(RegistrasiPesertaService::class)->sinkronkan($ujian);
+        $anggotaAktif = Siswa::aktif()->whereIn('id', $this->kelasMoving->siswaIds())->pluck('id');
+
+        $this->assertSame($anggotaAktif->count(), $hasil['ditambah']);
+
+        // Dua siswa di luar kelas moving: yang bawaan kelas dicabut saat
+        // sinkron, yang ditambahkan guru satu per satu tetap bertahan.
+        $luar = Siswa::aktif()->whereNotIn('id', $this->kelasMoving->siswaIds())->take(2)->get();
+
+        if ($luar->count() < 2) {
+            $this->markTestSkipped('Butuh dua siswa aktif di luar kelas moving.');
+        }
+
+        $registrasi = app(RegistrasiPesertaService::class);
+        $registrasi->daftarkanSiswa($ujian, [$luar[0]->id], UjianPeserta::SUMBER_MANUAL);
+        $registrasi->daftarkanSiswa($ujian, [$luar[1]->id], UjianPeserta::SUMBER_KELAS);
+
+        $registrasi->sinkronkan($ujian);
+
+        $this->assertDatabaseHas('ujian_peserta', [
+            'ujian_id' => $ujian->id, 'siswa_id' => $luar[0]->id, 'sumber' => UjianPeserta::SUMBER_MANUAL,
+        ]);
+        $this->assertDatabaseMissing('ujian_peserta', [
+            'ujian_id' => $ujian->id, 'siswa_id' => $luar[1]->id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $ganti
+     * @return array<string, mixed>
+     */
+    protected function formUjian(int $paketId, array $ganti = []): array
+    {
+        return $ganti + [
+            'kode_ujian' => 'KMF-1',
+            'nama_ujian' => 'Ujian Kelas Moving dari Form',
+            'paket_soal_id' => $paketId,
+            'tahun_ajaran' => TahunAjaran::aktif()?->nama_tahun_ajaran,
+            'waktu_mulai' => now()->addDay()->format('Y-m-d H:i'),
+            'waktu_selesai' => now()->addDay()->addHours(2)->format('Y-m-d H:i'),
+            'durasi_menit' => 60,
+            'kkm' => 75,
+            'maks_pelanggaran' => 3,
+            'status' => Ujian::DRAFT,
+        ];
+    }
+
     /** Siswa aktif sekelas asal dengan seorang anggota, tapi bukan anggota. */
     protected function bukanAnggotaSekelas(): ?Siswa
     {
@@ -159,7 +249,7 @@ class KelasMovingDatacenterTest extends TestCase
         return Siswa::aktif()->whereIn('id', $kandidat)->first();
     }
 
-    protected function ujian(int $mapelId): Ujian
+    protected function paket(int $mapelId): PaketSoal
     {
         $paket = PaketSoal::create([
             'kode_paket' => 'KMDC-'.uniqid(), 'nama_paket' => 'Paket Kelas Moving',
@@ -173,6 +263,13 @@ class KelasMovingDatacenterTest extends TestCase
         PaketSoalDetail::create([
             'paket_soal_id' => $paket->id, 'soal_id' => $soal->id, 'nomor_urut' => 1, 'bobot' => 1,
         ]);
+
+        return $paket;
+    }
+
+    protected function ujian(int $mapelId): Ujian
+    {
+        $paket = $this->paket($mapelId);
 
         return Ujian::create([
             'kode_ujian' => 'KMDC-'.uniqid(), 'nama_ujian' => 'Ujian Kelas Moving DC',
