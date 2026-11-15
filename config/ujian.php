@@ -1,5 +1,13 @@
 <?php
 
+// Penanda aplikasi ponsel peserta, disebut di dua tempat di bawah: sebagai
+// tetapan yang dibaca sisi aplikasi, dan sebagai penanda yang selalu ikut
+// dikenali sebagai peramban ujian. Dua literal yang harus sama akan
+// menyimpang suatu hari, dan gejalanya adalah seluruh peserta aplikasi
+// ditolak pada ujian wajib ExamBro - tanpa galat di mana pun. Karena itu
+// nilainya ditulis sekali saja di sini.
+$penandaAplikasi = 'CBTSiswa';
+
 return [
 
     /*
@@ -37,10 +45,10 @@ return [
     |
     */
 
-    'penanda_aplikasi' => 'CBTSiswa',
+    'penanda_aplikasi' => $penandaAplikasi,
 
     'penanda_exambro' => array_values(array_unique(array_filter(array_merge(
-        ['CBTSiswa'],
+        [$penandaAplikasi],
         array_map('trim', explode(',', (string) env('UJIAN_PENANDA_EXAMBRO', '')))
     )))),
 

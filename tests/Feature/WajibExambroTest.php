@@ -28,6 +28,9 @@ class WajibExambroTest extends TestCase
 
     protected const UA_CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+    /** User agent aplikasi ponsel peserta (CyberEdu) - bukan WebView. */
+    protected const UA_APLIKASI = 'CBTSiswa/1.1.5+5002 (Android; SM-A125F)';
+
     protected Siswa $siswa;
 
     protected Ujian $ujian;
@@ -143,6 +146,31 @@ class WajibExambroTest extends TestCase
             ->assertRedirect(route('siswa.ujian.kerjakan', $this->peserta));
 
         $this->assertSame(UjianPeserta::MULAI, $this->peserta->fresh()->status);
+    }
+
+    public function test_aplikasi_ponsel_peserta_boleh_memulai_ujian(): void
+    {
+        // Aplikasi ini bukan WebView, jadi POLA_WEBVIEW tidak mengenalinya dan
+        // user agent-nya tak ada bedanya dengan peramban asing di mata pola itu.
+        // Yang meloloskannya adalah penandanya sendiri - dan ia memang harus
+        // lolos: layarnya terkunci dan pelanggarannya dilaporkan lewat API yang
+        // sama, jadi menolaknya berarti menutup pintu bagi klien yang paling
+        // terkendali di antara semuanya.
+        $this->actingAs($this->siswa, 'siswa')
+            ->withHeader('User-Agent', self::UA_APLIKASI)
+            ->post(route('siswa.ujian.mulai', $this->peserta))
+            ->assertRedirect(route('siswa.ujian.kerjakan', $this->peserta));
+
+        $this->assertSame(UjianPeserta::MULAI, $this->peserta->fresh()->status);
+    }
+
+    /** Penanda aplikasi ikut dikenali walau sekolah tidak menyetel apa pun. */
+    public function test_penanda_aplikasi_selalu_ada_di_daftar_yang_dikenali(): void
+    {
+        $this->assertContains(
+            config('ujian.penanda_aplikasi'),
+            config('ujian.penanda_exambro'),
+        );
     }
 
     public function test_penanda_tambahan_dari_env_ikut_dikenali(): void
