@@ -26,10 +26,22 @@
     .soal-body[dir="rtl"], .soal-body [dir="rtl"] { text-align: right; }
 
     /* ---------- Pecahan bertingkat ---------- */
+    /*
+        Garis pecahan harus sejajar dengan tanda hitung di sebelahnya — pada
+        "7/8 + 3/4" tanda + duduk di garis pecahan, bukan di samping
+        pembilang. Pergeseran tetap (dulu -0.48em) selalu meleset karena
+        tinggi pecahan ikut berubah mengikuti isinya, terlebih bila
+        pembilangnya sendiri berupa pecahan lagi.
+
+        "middle" menempatkan titik tengah kotak pecahan pada separuh tinggi
+        huruf di atas garis alas — persis sumbu tempat tanda +, −, dan =
+        digambar. Karena pembilang dan penyebut sama tinggi, titik tengah itu
+        jatuh tepat pada garis pecahannya.
+    */
     .pecahan {
         display: inline-flex;
         flex-direction: column;
-        vertical-align: -0.48em;
+        vertical-align: middle;
         text-align: center;
         margin: 0 .18em;
     }
@@ -68,10 +80,44 @@
     .opsi-teks img { display: inline-block; vertical-align: middle; max-height: 9rem; margin: .2rem 0; }
 
     /* ---------- Tabel dalam soal ---------- */
-    .soal-body table { border-collapse: collapse; margin: .6rem 0; }
-    .soal-body table td, .soal-body table th {
+    /*
+        Tabel pada soal hampir selalu datang dari tempelan Word, Excel, atau
+        Google Dokumen, jadi lebarnya ditentukan di sana dan kerap melebihi
+        kolom soal. Dibiarkan apa adanya ia menjorok keluar kartu dan
+        mendorong tata letak halaman.
+
+        "display: block" dengan lebar secukupnya membuat tabel berhenti di
+        tepi kolom; bila isinya memang tidak muat, tabel itu sendiri yang
+        digulir ke samping, bukan halamannya.
+    */
+    .soal-body table, .opsi-teks table {
+        border-collapse: collapse;
+        margin: .6rem 0;
+        display: block;
+        width: max-content;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    .soal-body table td, .soal-body table th,
+    .opsi-teks table td, .opsi-teks table th {
         border: 1px solid #c9d2e0;
         padding: .3rem .55rem;
+        vertical-align: top;
+    }
+    .soal-body table th, .opsi-teks table th { background: #f4f7fb; }
+
+    /*
+        Word membungkus isi tiap sel dengan <p>. Margin bawaan paragraf
+        membuat baris tabel menjadi tinggi dan renggang, padahal di Word-nya
+        rapat.
+    */
+    .soal-body table p, .opsi-teks table p { margin: 0; }
+    .soal-body table ul, .soal-body table ol,
+    .opsi-teks table ul, .opsi-teks table ol { margin: 0; padding-left: 1.1rem; }
+
+    /* Di atas kertas tidak ada yang bisa digulir; tabel dibiarkan utuh. */
+    @media print {
+        .soal-body table, .opsi-teks table { display: table; width: auto; overflow-x: visible; }
     }
 
     /* Isi opsi jawaban memakai gaya yang sama dengan badan soal. */

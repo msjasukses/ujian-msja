@@ -206,18 +206,109 @@ window.EditorSoal = (function () {
      * Kolom opsi jawaban dan pasangan penjodohan tingginya satu baris; sebuah
      * tempelan beralinea dari Word akan merenggangkan barisnya dan merusak
      * susunan daftar opsi. Tag bloknya dibuang, isinya tetap.
+     *
+     * Tabel adalah kekecualiannya. Guru yang menempelkan tabel ke kolom opsi
+     * memang memaksudkan tabelnya; diratakan, yang tersisa hanya deretan kata
+     * tanpa bentuk — "No Nama 1 Air" — dan tidak ada cara memulihkannya.
+     * Kolomnya memanjang sendiri mengikuti isi, jadi opsi bertabel tetap
+     * terbaca tanpa merusak deretan opsi lainnya.
      */
     function ratakan(wadah) {
-        wadah.querySelectorAll('p, div, li, ul, ol, table, thead, tbody, tr, td, th, br')
-            .forEach(function (el) {
-                if (el.tagName === 'BR') {
-                    el.replaceWith(document.createTextNode(' '));
+        wadah.querySelectorAll('p, div, li, ul, ol, br').forEach(function (el) {
+            if (el.closest('table')) return;
 
-                    return;
-                }
+            if (el.tagName === 'BR') {
+                el.replaceWith(document.createTextNode(' '));
 
-                el.replaceWith(...el.childNodes, document.createTextNode(' '));
-            });
+                return;
+            }
+
+            el.replaceWith(...el.childNodes, document.createTextNode(' '));
+        });
+
+        rapatkanSpasi(wadah);
+    }
+
+    /**
+     * Rapatkan sisa spasi bekas tag blok yang dibuka.
+     *
+     * Tiap blok menyisakan satu spasi, dan tempelan Word yang bersarang bisa
+     * menyisakan selusin sekaligus. Peramban mengubah deretan itu menjadi
+     * rentetan &nbsp; yang ikut tersimpan ke bank soal — tampak sebagai opsi
+     * yang menggantung jauh dari hurufnya. Isi tabel dilewati: jarak di
+     * dalamnya sudah diatur selnya sendiri.
+     */
+    function rapatkanSpasi(wadah) {
+        // Tiap blok yang dibuka meninggalkan simpul teks berisi satu spasi,
+        // masing-masing berdiri sendiri. Tanpa disatukan lebih dulu, deretan
+        // itu tidak pernah terbaca sebagai spasi berturut-turut.
+        wadah.normalize();
+
+        const jalan = document.createTreeWalker(wadah, NodeFilter.SHOW_TEXT);
+        const teks = [];
+        let simpul;
+
+        while ((simpul = jalan.nextNode())) {
+            if (! simpul.parentElement?.closest('table')) teks.push(simpul);
+        }
+
+        teks.forEach(function (t) {
+            t.textContent = t.textContent.replace(/[\s ]+/g, ' ');
+        });
+
+        if (teks.length === 0) return;
+
+        teks[0].textContent = teks[0].textContent.replace(/^ /, '');
+        teks[teks.length - 1].textContent = teks[teks.length - 1].textContent.replace(/ $/, '');
+    }
+
+    /**
+     * Rapikan tabel hasil tempelan.
+     *
+     * Word, Excel, dan Google Dokumen membungkus isi tiap sel dengan <p> atau
+     * <div> — kerap beberapa sekaligus, termasuk yang kosong sebagai pengganti
+     * baris kosong. Margin bawaan paragraf itu membuat baris tabel jadi tinggi
+     * dan renggang, padahal di naskah asalnya rapat. Isinya diturunkan menjadi
+     * isi sel biasa; pemisah antarblok diganti <br> hanya bila memang ada dua
+     * blok yang berisi.
+     */
+    function rapikanTabel(wadah) {
+        wadah.querySelectorAll('td, th').forEach(function (sel) {
+            // Berputar beberapa kali karena blok dari Word kerap bersarang:
+            // sebuah <div> yang isinya <p>. Batasnya menjaga agar tempelan
+            // aneh tidak membuat putaran ini berjalan tanpa akhir.
+            for (let putaran = 0; putaran < 5; putaran++) {
+                const blok = [...sel.children].filter(el => el.tagName === 'P' || el.tagName === 'DIV');
+
+                if (blok.length === 0) break;
+
+                let adaIsi = false;
+
+                blok.forEach(function (el) {
+                    if (el.textContent.trim() === '' && ! el.querySelector('img')) {
+                        el.remove();
+
+                        return;
+                    }
+
+                    if (adaIsi) el.before(document.createElement('br'));
+                    adaIsi = true;
+
+                    el.replaceWith(...el.childNodes);
+                });
+            }
+        });
+
+        // Word memakai tabel bersel tunggal sebagai kotak tata letak — bingkai
+        // di sekeliling sebuah kalimat, bukan tabel yang perlu dibaca sebagai
+        // tabel. Isinya dikembalikan menjadi teks biasa.
+        wadah.querySelectorAll('table').forEach(function (tabel) {
+            if (tabel.querySelectorAll('td, th').length > 1) return;
+
+            tabel.querySelectorAll('thead, tbody, tfoot, tr, td, th')
+                .forEach(el => el.replaceWith(...el.childNodes));
+            tabel.replaceWith(...tabel.childNodes);
+        });
     }
 
     // ------------------------------------------------------------------
@@ -509,6 +600,8 @@ window.EditorSoal = (function () {
                 kelas.length ? (el.className = kelas.join(' ')) : el.removeAttribute('class');
             }
         });
+
+        rapikanTabel(wadah);
 
         if (satuBaris) ratakan(wadah);
 
