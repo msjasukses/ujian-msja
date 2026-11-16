@@ -55,6 +55,25 @@ window.EditorSoal = (function () {
     const ATRIBUT_BOLEH = ['dir','lang','class','colspan','rowspan','src','alt'];
     const KELAS_BOLEH = ['teks-arab','pecahan','pembilang','penyebut','akar','radikan'];
 
+    /*
+     * Rentang tulisan Arab: huruf Arab dan turunannya, harakat, tatwil,
+     * tanda baca Arab, angka Arab, serta bentuk sambungnya.
+     */
+    const AKSARA_ARAB = '\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF';
+
+    /** Satu untaian Arab utuh — spasi di tengahnya ikut, di ujungnya tidak. */
+    const POLA_ARAB = new RegExp(
+        '[' + AKSARA_ARAB + '](?:[' + AKSARA_ARAB + '\\s\\u200c\\u200d]*[' + AKSARA_ARAB + '])?',
+        'g'
+    );
+
+    /*
+     * Huruf Arab sungguhan, bukan angka atau tanda baca semata. Angka Arab
+     * "١" yang berdiri sendiri — nomor urut pada daftar kosakata, misalnya —
+     * tidak perlu diperlakukan sebagai kutipan Arab.
+     */
+    const POLA_HURUF_ARAB = new RegExp('[\\u0620-\\u064A\\u066E-\\u06D3\\u06FA-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]');
+
     let editorAktif = null;
     let rentangTersimpan = null;
 
@@ -164,8 +183,40 @@ window.EditorSoal = (function () {
             if (!html && !teks) return;
 
             e.preventDefault();
-            document.execCommand('insertHTML', false, html ? saring(html, ! luas) : konversiLatexDalamTeks(teks));
+            // Tempelan teks polos tidak melewati penyaring, jadi pemagaran
+            // Arabnya dipanggil di sini — jalur inilah yang paling sering
+            // dipakai saat menyalin kosakata Arab dari mana pun.
+            document.execCommand('insertHTML', false, html
+                ? saring(html, ! luas)
+                : pagariArab(konversiLatexDalamTeks(teks)));
             sinkron(editor, kolom);
+        });
+
+        // Huruf Arab yang diketik langsung — dari papan ketik Arab Windows
+        // maupun tombol hijaiyah — baru dipagari setelah kolomnya ditinggalkan.
+        // Menatanya sambil diketik akan melemparkan kursor ke tempat lain pada
+        // tiap huruf.
+        editor.addEventListener('blur', function (e) {
+            // Tombol papan sisip merebut fokus sebentar saat ditekan. Menata
+            // ulang isi pada saat itu membuat posisi kursor yang disimpan
+            // menunjuk simpul yang sudah tidak ada, dan sisipan berikutnya
+            // mendarat di awal kolom.
+            if (e.relatedTarget?.closest('#papanSimbol')) return;
+
+            if (! bungkusArab(editor)) return;
+
+            sinkron(editor, kolom);
+
+            // Isi kolom baru saja disusun ulang, jadi posisi kursor yang
+            // tersimpan menunjuk simpul yang sudah tidak ada. Diarahkan ke
+            // ujung isi supaya sisipan berikutnya dari papan simbol mendarat
+            // di tempat yang masuk akal, bukan di awal kolom.
+            if (editorAktif === editor) {
+                const ujung = document.createRange();
+                ujung.selectNodeContents(editor);
+                ujung.collapse(false);
+                rentangTersimpan = ujung;
+            }
         });
 
         return editor;
@@ -309,6 +360,130 @@ window.EditorSoal = (function () {
                 .forEach(el => el.replaceWith(...el.childNodes));
             tabel.replaceWith(...tabel.childNodes);
         });
+    }
+
+    /**
+     * Pagari kutipan Arab dengan blok arahnya sendiri.
+     *
+     * Kolom teks soal memakai dir="auto": peramban menebak arah tulisan dari
+     * huruf berarah pertama yang ditemuinya. Satu kata Arab di awal kalimat
+     * sudah cukup membuat seluruh kolom dibaca kanan-ke-kiri, sehingga soal
+     * berbahasa Indonesia pun terlempar menempel ke tepi kanan — dan nomor
+     * urut serta tanda kurung di sekitarnya berpindah tempat.
+     *
+     * Menyalin kutipan Arab dari mana pun karena itu selalu berakhir begitu;
+     * tombol "Blok teks Arab" pada papan sisip hanya menolong yang mengetik
+     * sendiri. Di sini tiap untaian Arab dibungkus blok yang sama seperti
+     * yang dipasang tombol itu. Pembungkusnya ber-dir sendiri, sehingga
+     * tebakan arah pada kolom tidak lagi melihat ke dalamnya: kalimat
+     * Indonesia tetap kiri-ke-kanan, dan kutipan Arabnya tetap utuh
+     * kanan-ke-kiri di dalam pagarnya.
+     *
+     * Soal yang seluruhnya berbahasa Arab tidak dirugikan: pembungkusnya
+     * memenuhi lebar kolom dan isinya tetap rata kanan.
+     *
+     * @return {boolean} benar bila ada yang dibungkus.
+     */
+    function bungkusArab(wadah) {
+        let berubah = false;
+
+        // Alinea yang isinya memang Arab seluruhnya tidak dipagari kata demi
+        // kata, melainkan diberi arah pada alineanya sendiri. Dengan begitu
+        // titik, tanda tanya, dan tanda kutip di ujung kalimat berpindah ke
+        // tempat yang benar — pada tulisan Arab tempatnya di ujung kiri —
+        // dan barisnya rata kanan seperti naskah Arab pada umumnya.
+        wadah.querySelectorAll('p, div, li, blockquote, td, th').forEach(function (el) {
+            if (el.hasAttribute('dir')) return;
+
+            // Yang ditandai hanya blok terdalam; menandai pembungkusnya akan
+            // ikut membalik alinea berbahasa Indonesia di dalamnya.
+            if (el.querySelector('p, div, li, blockquote, table')) return;
+
+            if (! seluruhnyaArab(el.textContent)) return;
+
+            el.setAttribute('dir', 'rtl');
+            el.setAttribute('lang', 'ar');
+            berubah = true;
+        });
+
+        // Tempelan tanpa alinea sama sekali — teks polos, atau satu kalimat
+        // yang langsung mendarat di kolom — diperlakukan sama: satu pagar
+        // untuk seluruhnya, bukan satu pagar tiap kata.
+        if (wadah.childNodes.length > 0
+            && ! wadah.querySelector('p, div, li, blockquote, table, .teks-arab, [dir="rtl"]')
+            && seluruhnyaArab(wadah.textContent)) {
+            const pagar = document.createElement('span');
+            pagar.className = 'teks-arab';
+            pagar.setAttribute('lang', 'ar');
+            pagar.setAttribute('dir', 'rtl');
+            pagar.append(...wadah.childNodes);
+            wadah.append(pagar);
+
+            return true;
+        }
+
+        const jalan = document.createTreeWalker(wadah, NodeFilter.SHOW_TEXT);
+        const sasaran = [];
+        let simpul;
+
+        while ((simpul = jalan.nextNode())) {
+            if (! POLA_HURUF_ARAB.test(simpul.textContent)) continue;
+
+            // Yang sudah berada di dalam pagar arah — entah dari tombol papan
+            // sisip, entah dari penempelan sebelumnya — dibiarkan.
+            if (simpul.parentElement?.closest('.teks-arab, [dir="rtl"]')) continue;
+
+            sasaran.push(simpul);
+        }
+
+        sasaran.forEach(function (teks) {
+            const isi = teks.textContent;
+            const ganti = document.createElement('span');
+
+            let keluar = '';
+            let akhir = 0;
+            let cocok;
+
+            POLA_ARAB.lastIndex = 0;
+
+            while ((cocok = POLA_ARAB.exec(isi)) !== null) {
+                keluar += lolos(isi.slice(akhir, cocok.index));
+
+                keluar += POLA_HURUF_ARAB.test(cocok[0])
+                    ? '<span class="teks-arab" lang="ar" dir="rtl">' + lolos(cocok[0]) + '</span>'
+                    : lolos(cocok[0]);
+
+                akhir = cocok.index + cocok[0].length;
+            }
+
+            keluar += lolos(isi.slice(akhir));
+
+            ganti.innerHTML = keluar;
+            teks.replaceWith(...ganti.childNodes);
+        });
+
+        return berubah || sasaran.length > 0;
+    }
+
+    /**
+     * Apakah sepotong teks memang berbahasa Arab seluruhnya?
+     *
+     * Angka dan tanda baca dibiarkan: nomor ayat dan titik di ujung kalimat
+     * tetap bagian dari naskah Arabnya. Satu kata beraksara Latin sudah cukup
+     * menandakan kalimat itu bukan kutipan Arab utuh, melainkan kalimat
+     * Indonesia yang memuat kutipan.
+     */
+    function seluruhnyaArab(teks) {
+        return POLA_HURUF_ARAB.test(teks) && ! /[A-Za-z]/.test(teks || '');
+    }
+
+    /** Jalankan pemagaran Arab pada sepotong HTML lepas. */
+    function pagariArab(html) {
+        const wadah = document.createElement('div');
+        wadah.innerHTML = html;
+        bungkusArab(wadah);
+
+        return wadah.innerHTML;
     }
 
     // ------------------------------------------------------------------
@@ -602,6 +777,7 @@ window.EditorSoal = (function () {
         });
 
         rapikanTabel(wadah);
+        bungkusArab(wadah);
 
         if (satuBaris) ratakan(wadah);
 
