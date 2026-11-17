@@ -51,6 +51,7 @@ class Ujian extends Model
         'waktu_mulai',
         'waktu_selesai',
         'durasi_menit',
+        'menit_boleh_kumpul',
         'token',
         'kkm',
         'tampilkan_hasil',
@@ -69,6 +70,8 @@ class Ujian extends Model
     protected $casts = [
         'waktu_mulai' => 'datetime',
         'waktu_selesai' => 'datetime',
+        'durasi_menit' => 'integer',
+        'menit_boleh_kumpul' => 'integer',
         'kkm' => 'decimal:2',
         'tampilkan_hasil' => 'boolean',
         'acak_soal' => 'boolean',

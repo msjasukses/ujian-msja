@@ -63,6 +63,7 @@ class UjianController extends Controller
             'waktu_mulai' => now()->addDay()->setTime(7, 30),
             'waktu_selesai' => now()->addDay()->setTime(9, 30),
             'durasi_menit' => 90,
+            'menit_boleh_kumpul' => 0,
             'kkm' => 75,
             'token' => strtoupper(Str::random(6)),
             'tampilkan_hasil' => true,
@@ -447,6 +448,10 @@ class UjianController extends Controller
             'waktu_mulai' => 'required|date',
             'waktu_selesai' => 'required|date|after:waktu_mulai',
             'durasi_menit' => 'required|integer|min:5|max:600',
+            // Tidak dikirim atau 0 berarti bebas mengumpulkan kapan saja.
+            // Batas atasnya sama dengan durasi maksimum: ambang yang lebih
+            // panjang dari durasinya sendiri sama saja dengan bebas.
+            'menit_boleh_kumpul' => 'nullable|integer|min:0|max:600',
             'token' => 'nullable|string|max:10',
             'kkm' => 'required|numeric|min:0|max:100',
             'maks_pelanggaran' => 'required|integer|min:0|max:255',
@@ -469,6 +474,7 @@ class UjianController extends Controller
         ]);
 
         $data['mode_peserta'] = ($data['mode_peserta'] ?? null) ?: Ujian::MODE_KELAS;
+        $data['menit_boleh_kumpul'] = (int) ($data['menit_boleh_kumpul'] ?? 0);
 
         // Mapel ujian selalu mengikuti paket soalnya agar laporan per mapel konsisten.
         $data['mata_pelajaran_id'] = PaketSoal::find($data['paket_soal_id'])?->mata_pelajaran_id;

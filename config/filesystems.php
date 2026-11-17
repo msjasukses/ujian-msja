@@ -47,6 +47,18 @@ return [
             'report' => false,
         ],
 
+        // Berkas unggahan aplikasi Data Center (READ-ONLY) — dipakai membaca
+        // logo sekolah: kolom sekolah.logo di sana menyimpan path relatif pada
+        // disk ini (mis. "sekolah/logo.png"), bukan URL. Bawaannya menebak
+        // kedua aplikasi bertetangga dalam satu direktori web; bila tidak,
+        // setel DATACENTER_STORAGE_PATH ke storage/app/public miliknya.
+        'datacenter' => [
+            'driver' => 'local',
+            'root' => env('DATACENTER_STORAGE_PATH', base_path('../datacenter-msja/storage/app/public')),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

@@ -9,6 +9,7 @@
 
     $jumlahKartu = $kartuPerKelas->sum(fn ($k) => $k->count());
     $namaSekolah = $sekolah?->nama_sekolah ?? config('app.name');
+    $urlLogo = $sekolah?->urlLogo();
 @endphp
 
 <div class="card mb-3 no-print">
@@ -82,7 +83,15 @@
                     @foreach ($daftarKartu as $k)
                         <article class="kartu">
                             <header class="kartu-kop">
-                                <div class="kartu-logo"><i class="bi bi-mortarboard-fill"></i></div>
+                                {{-- Logo sekolah dari Data Center; lambang umum
+                                     bila di sana belum ada logonya. --}}
+                                <div @class(['kartu-logo', 'kartu-logo-gambar' => $urlLogo])>
+                                    @if ($urlLogo)
+                                        <img src="{{ $urlLogo }}" alt="Logo {{ $namaSekolah }}">
+                                    @else
+                                        <i class="bi bi-mortarboard-fill"></i>
+                                    @endif
+                                </div>
                                 <div class="min-width-0">
                                     <div class="kartu-judul">KARTU PESERTA UJIAN</div>
                                     <div class="kartu-sekolah">{{ $namaSekolah }}</div>
@@ -173,6 +182,14 @@
         width:10mm; height:10mm; flex:none; border-radius:2mm; display:grid; place-items:center;
         background:#1b3a63; color:#fff; font-size:13pt;
     }
+    /*
+        Logo sungguhan tampil apa adanya: kotak biru hanya latar lambang
+        bawaan. Lebarnya dibiarkan mengikuti bentuk berkas sampai 16 mm —
+        lambang sekolah kerap melebar, dan dipaksa ke kotak 10 mm ia menyusut
+        jadi noda kecil di kop.
+    */
+    .kartu-logo-gambar { background:transparent; border-radius:0; width:auto; max-width:16mm; }
+    .kartu-logo img { height:10mm; width:auto; max-width:16mm; object-fit:contain; }
     .kartu-judul { font-weight:800; font-size:10pt; letter-spacing:.06em; color:#1b3a63; }
     .kartu-sekolah { font-weight:700; font-size:8pt; text-transform:uppercase; }
     .kartu-sub { font-size:7pt; color:#444; }

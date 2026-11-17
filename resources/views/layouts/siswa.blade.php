@@ -42,6 +42,10 @@
         }
         .bilah-atas .merek { color:#fff; font-weight:700; letter-spacing:-.01em; }
         .bilah-atas .merek i { color:var(--hijau); }
+        /* Logo sekolah berlatar putih: lambang sekolah umumnya bergambar di
+           atas putih dan akan hilang ditelan bilah yang gelap. */
+        .bilah-atas .merek-logo { width:1.7rem; height:1.7rem; object-fit:contain;
+                                  background:#fff; border-radius:.3rem; padding:1px; }
         .bilah-atas .nama-pengguna { color:#c8d6e8; }
         .bilah-atas .btn-keluar {
             border-color:rgba(255,255,255,.25); color:#e6edf7;
@@ -178,10 +182,17 @@
 </head>
 <body>
 
+@php $urlLogo = \App\Support\Referensi::urlLogoSekolah(); @endphp
+
 <nav class="bilah-atas sticky-top px-3 py-2">
     <div class="container-fluid d-flex align-items-center gap-3" style="max-width:1400px">
         <span class="merek d-flex align-items-center gap-2 flex-shrink-0">
-            <i class="bi bi-mortarboard-fill fs-5"></i>
+            {{-- Logo sekolah dari Data Center; lambang umum bila belum ada logonya. --}}
+            @if ($urlLogo)
+                <img src="{{ $urlLogo }}" alt="" class="merek-logo">
+            @else
+                <i class="bi bi-mortarboard-fill fs-5"></i>
+            @endif
             <span class="d-none d-sm-inline">{{ config('app.name') }}</span>
         </span>
 

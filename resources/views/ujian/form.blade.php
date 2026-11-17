@@ -135,11 +135,29 @@
                                    value="{{ old('durasi_menit', $item->durasi_menit) }}" class="form-control">
                             <div class="form-text">Hitung mundur mulai saat siswa menekan "Mulai".</div>
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="menit_boleh_kumpul">Tombol "Selesai" terbuka</label>
+                            <div class="input-group">
+                                <input type="number" name="menit_boleh_kumpul" id="menit_boleh_kumpul"
+                                       min="0" max="600" step="1"
+                                       value="{{ old('menit_boleh_kumpul', $item->menit_boleh_kumpul ?? 0) }}"
+                                       class="form-control @error('menit_boleh_kumpul') is-invalid @enderror">
+                                <span class="input-group-text">menit terakhir</span>
+                                @error('menit_boleh_kumpul')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="form-text">
+                                <strong>0</strong> = boleh mengumpulkan kapan saja. Isi misalnya <strong>15</strong>
+                                agar tombol "Selesai &amp; Kumpulkan" baru aktif pada 15 menit terakhir.
+                            </div>
+                        </div>
                     </div>
                     <div class="alert alert-light border small mt-3 mb-0">
                         <i class="bi bi-info-circle me-1"></i>
                         Jendela waktu adalah rentang kapan ujian boleh dibuka; durasi adalah lama pengerjaan tiap siswa.
                         Pengerjaan berhenti pada yang lebih dulu tercapai di antara keduanya.
+                        Ambang tombol "Selesai" dihitung dari akhir pengerjaan tiap siswa, jadi peserta yang
+                        terlambat mulai tetap mendapat jendela pengumpulan sepanjang itu.
+                        Waktu habis dan penutupan paksa oleh pengawas tidak terhalang ambang ini.
                     </div>
                 </div>
             </div>

@@ -13,6 +13,14 @@
     aplikasi. Berkasnya ada di public/vendor/ dan ikut tersalin saat aplikasi
     dipindahkan.
 --}}
+{{-- Ikon tab peramban: logo sekolah dari Data Center, dilayani server ini
+     sendiri lewat rute logo-sekolah. Tanpa logo di sana, peramban jatuh ke
+     public/favicon.ico seperti sebelumnya. --}}
+@php $urlLogoSekolah = \App\Support\Referensi::urlLogoSekolah(); @endphp
+@if ($urlLogoSekolah)
+    <link rel="icon" href="{{ $urlLogoSekolah }}">
+@endif
+
 <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
 <link href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
 <link href="{{ asset('vendor/select2/select2.min.css') }}" rel="stylesheet">

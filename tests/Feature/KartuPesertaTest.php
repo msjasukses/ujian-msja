@@ -6,6 +6,7 @@ use App\Models\Guru;
 use App\Models\MataPelajaran;
 use App\Models\PaketSoal;
 use App\Models\RombonganBelajar;
+use App\Models\Sekolah;
 use App\Models\Siswa;
 use App\Models\Ujian;
 use App\Models\UjianPeserta;
@@ -132,6 +133,38 @@ class KartuPesertaTest extends TestCase
             ->assertOk()
             ->assertSee('Cetak Kartu Peserta')
             ->assertSee(route('kartu-peserta.index', ['ujian_id' => [$this->ujianSatu->id]]), false);
+    }
+
+    /** Kop kartu memakai logo sekolah milik Data Center, bukan lambang bawaan. */
+    public function test_kop_kartu_memakai_logo_dari_data_center(): void
+    {
+        $sekolah = Sekolah::profil();
+
+        if (! $sekolah?->pathLogo()) {
+            $this->markTestSkipped('Profil sekolah di Data Center belum punya logo.');
+        }
+
+        $this->get('/kartu-peserta')->assertOk()
+            ->assertSee('src="'.route('logo-sekolah').'"', false)
+            ->assertDontSee('bi-mortarboard-fill', false);
+
+        $berkas = $this->get(route('logo-sekolah'))->assertOk();
+
+        $this->assertStringStartsWith('image/', (string) $berkas->headers->get('content-type'));
+    }
+
+    /**
+     * Nilai kolom sekolah.logo menentukan berkas mana yang dibuka, dan
+     * datangnya dari aplikasi lain: lintasan direktori tidak boleh dilayani.
+     */
+    public function test_path_logo_menolak_lintasan_direktori(): void
+    {
+        $sekolah = new Sekolah;
+
+        foreach (['../../../../.env', 'sekolah/../../.env', '/etc/passwd', 'sekolah/logo.php', ''] as $nilai) {
+            $sekolah->logo = $nilai;
+            $this->assertNull($sekolah->pathLogo(), "Ditolak: {$nilai}");
+        }
     }
 
     protected function ujian(string $kode, MataPelajaran $mapel, $mulai, string $status = Ujian::AKTIF): Ujian

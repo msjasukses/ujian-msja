@@ -179,6 +179,10 @@ class UjianSiswaApiController extends Controller
         return response()->json([
             'status' => $peserta->status,
             'sisa_detik' => $peserta->sisaWaktuDetik(),
+            // Ikut dikirim di denyut supaya aplikasi tidak perlu menghitung
+            // ambangnya sendiri: tombol "Selesai" cukup mengikuti kabar ini.
+            'boleh_kumpul' => $peserta->bolehKumpulkan(),
+            'detik_tunggu_kumpul' => $peserta->detikMenungguKumpul(),
             'pengawasan' => $this->pengawasan->keadaan($peserta),
         ]);
     }
@@ -231,7 +235,11 @@ class UjianSiswaApiController extends Controller
     {
         $this->pastikanMilikSiswa($peserta);
 
-        $this->pengerjaan->selesaikan($peserta);
+        try {
+            $this->pengerjaan->selesaikanOlehSiswa($peserta);
+        } catch (\RuntimeException $e) {
+            return response()->json(['pesan' => $e->getMessage()], 422);
+        }
 
         return response()->json(ApiSiswa::ujianRingkas($peserta->refresh()));
     }

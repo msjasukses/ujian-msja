@@ -1,7 +1,20 @@
-@php use App\Support\Pengguna; @endphp
+@php
+    use App\Support\Pengguna;
+    use App\Support\Referensi;
+
+    $urlLogo = Referensi::urlLogoSekolah();
+@endphp
 <div class="sidebar" id="sidebar">
     <div class="brand d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-clipboard-check-fill me-2"></i>Aplikasi Ujian</span>
+        {{-- Logo sekolah dari Data Center; lambang umum bila belum ada logonya. --}}
+        <span class="d-flex align-items-center gap-2">
+            @if ($urlLogo)
+                <img src="{{ $urlLogo }}" alt="" class="merek-logo">
+            @else
+                <i class="bi bi-clipboard-check-fill"></i>
+            @endif
+            Aplikasi Ujian
+        </span>
         <button type="button" class="btn btn-sm text-white d-lg-none p-0" onclick="tutupSidebar()" aria-label="Tutup menu">
             <i class="bi bi-x-lg"></i>
         </button>

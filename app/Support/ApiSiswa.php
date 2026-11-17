@@ -102,6 +102,7 @@ final class ApiSiswa
                 'waktu_selesai' => $ujian->waktu_selesai?->toIso8601String(),
                 'ditutup_ringkas' => $ujian->ditutup_ringkas,
                 'durasi_menit' => (int) $ujian->durasi_menit,
+                'menit_boleh_kumpul' => (int) $ujian->menit_boleh_kumpul,
                 'kkm' => (float) $ujian->kkm,
                 'butuh_token' => filled($ujian->token),
                 'proteksi_ketat' => (bool) $ujian->proteksi_ketat,
@@ -113,6 +114,11 @@ final class ApiSiswa
                 'sudah_lewat' => (bool) $ujian->sudah_lewat,
             ],
             'sisa_detik' => $peserta->sisaWaktuDetik(),
+            // Dua angka ini yang dipakai aplikasi untuk mematikan tombol
+            // "Selesai" dan menampilkan hitungan kapan tombolnya terbuka.
+            // Keputusannya tetap diperiksa ulang server saat tombol ditekan.
+            'boleh_kumpul' => $peserta->bolehKumpulkan(),
+            'detik_tunggu_kumpul' => $peserta->detikMenungguKumpul(),
             'nilai' => $peserta->nilai === null ? null : (float) $peserta->nilai,
             'lulus' => $peserta->lulus,
             'selesai' => $peserta->status === UjianPeserta::SELESAI,

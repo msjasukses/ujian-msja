@@ -25,6 +25,11 @@
         .panel-kiri .logo { width:3.25rem; height:3.25rem; border-radius:.9rem;
                             background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18);
                             display:grid; place-items:center; font-size:1.4rem; font-weight:700; }
+        /* Berisi logo sekolah dari Data Center: latarnya dibuat putih karena
+           lambang sekolah umumnya bergambar di atas putih, dan kotak tembus
+           pandang di atas panel gelap membuatnya tampak seperti tempelan. */
+        .panel-kiri .logo.logo-gambar { background:#fff; border-color:rgba(255,255,255,.65); padding:.3rem; }
+        .panel-kiri .logo img { width:100%; height:100%; object-fit:contain; }
         .panel-kiri .kepala { display:flex; align-items:center; gap:1rem; }
         .panel-kiri .tombol-beranda { margin-left:auto; display:inline-flex; align-items:center; gap:.45rem;
                                       padding:.5rem 1.1rem; font-size:.88rem; font-weight:600; color:#fff;
@@ -123,7 +128,16 @@
 <div class="layar">
     <div class="panel-kiri">
         <div class="kepala">
-            <div class="logo">{{ mb_strtoupper(mb_substr(config('app.name'), 0, 1)) }}</div>
+            {{-- Logo sekolah dari Data Center; huruf awal nama aplikasi
+                 bila di sana belum ada logonya. --}}
+            @php $urlLogo = \App\Support\Referensi::urlLogoSekolah(); @endphp
+            <div @class(['logo', 'logo-gambar' => $urlLogo])>
+                @if ($urlLogo)
+                    <img src="{{ $urlLogo }}" alt="Logo sekolah">
+                @else
+                    {{ mb_strtoupper(mb_substr(config('app.name'), 0, 1)) }}
+                @endif
+            </div>
 
             {{-- Jalan pulang ke beranda sekolah. Alamatnya relatif satu tingkat
                  ke atas: aplikasi ujian dipasang di dalam folder di bawah

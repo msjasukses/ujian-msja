@@ -107,6 +107,36 @@ class UjianPeserta extends Model
         return max(0, now()->diffInSeconds($batas, false));
     }
 
+    /**
+     * Bolehkah peserta sendiri menekan "Selesai & Kumpulkan" sekarang?
+     *
+     * Ambangnya diukur dari sisa waktu lembar ini — hasil sisaWaktuDetik(),
+     * yang mana pun lebih dulu tiba antara akhir durasi peserta dan jam tutup
+     * ujian — bukan semata dari jam selesai ujian. Peserta yang terlambat
+     * mulai karena itu tetap mendapat jendela pengumpulan yang sama
+     * panjangnya, diukur dari akhir lembarnya sendiri.
+     *
+     * Ambang 0 (bawaan) berarti bebas mengumpulkan kapan saja.
+     */
+    public function bolehKumpulkan(): bool
+    {
+        $ambang = (int) $this->ujian->menit_boleh_kumpul;
+
+        return $ambang <= 0 || $this->sisaWaktuDetik() <= $ambang * 60;
+    }
+
+    /** Detik tersisa sampai tombol Selesai aktif; 0 berarti sudah aktif. */
+    public function detikMenungguKumpul(): int
+    {
+        $ambang = (int) $this->ujian->menit_boleh_kumpul;
+
+        if ($ambang <= 0) {
+            return 0;
+        }
+
+        return max(0, $this->sisaWaktuDetik() - $ambang * 60);
+    }
+
     /** Lulus KKM ujian yang bersangkutan. */
     public function getLulusAttribute(): ?bool
     {

@@ -11,6 +11,7 @@ use App\Http\Controllers\Laporan\PengayaanController;
 use App\Http\Controllers\Laporan\RemidialController;
 use App\Http\Controllers\Laporan\StatistikController;
 use App\Http\Controllers\LogLoginController;
+use App\Http\Controllers\LogoSekolahController;
 use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\PaketSoalController;
 use App\Http\Controllers\PengaturanController;
@@ -35,6 +36,12 @@ Route::get('/', fn () => redirect()->route('login'));
 Route::get('login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:20,1');
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+
+// Logo sekolah dari aplikasi Data Center, dilayani aplikasi ini supaya kop
+// kartu peserta tidak bergantung pada peladen Data Center saat kartu dicetak.
+// Di luar area terbatas: logo sekolah bukan rahasia dan halaman cetak kartu
+// memuatnya ratusan kali.
+Route::get('logo-sekolah', LogoSekolahController::class)->name('logo-sekolah');
 
 // ---------------------------------------------------------------------------
 // Area pengelola: admin/operator dan guru

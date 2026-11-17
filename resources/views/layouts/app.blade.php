@@ -17,6 +17,11 @@
         .sidebar .nav-link:hover, .sidebar .nav-link.active { background:var(--sb-hover); color:#fff; }
         .sidebar .nav-link.active { box-shadow:inset 3px 0 0 #4dabf7; }
         .sidebar .brand { color:#fff; font-weight:600; padding:1rem; border-bottom:1px solid var(--sb-hover); }
+        /* Logo sekolah di kepala sidebar: berlatar putih karena lambang
+           sekolah umumnya bergambar di atas putih, dan tanpa itu ia hilang
+           ditelan sidebar yang gelap. */
+        .sidebar .merek-logo { width:1.6rem; height:1.6rem; object-fit:contain;
+                               background:#fff; border-radius:.3rem; padding:1px; }
         .menu-toggle { width:100%; text-align:left; background:transparent; border:0; border-radius:.35rem; margin:1px .5rem; }
         .menu-toggle:hover { background:var(--sb-hover); color:#fff; }
         .menu-toggle .chev { transition:transform .2s; font-size:.7rem; }

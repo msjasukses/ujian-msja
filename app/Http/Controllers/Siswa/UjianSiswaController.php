@@ -100,6 +100,12 @@ class UjianSiswaController extends Controller
             'peserta' => $peserta->load('ujian'),
             'jawaban' => $peserta->jawaban()->with('soal')->get(),
             'sisaDetik' => $peserta->sisaWaktuDetik(),
+            // Ambang tombol "Selesai". Dikirim sebagai detik supaya hitung
+            // mundur di layar bisa membukanya sendiri tanpa memuat ulang
+            // halaman — keputusan sebenarnya tetap diperiksa server.
+            'bolehKumpul' => $peserta->bolehKumpulkan(),
+            'ambangKumpulDetik' => (int) $peserta->ujian->menit_boleh_kumpul * 60,
+            'tungguKumpulDetik' => $peserta->detikMenungguKumpul(),
             'pengawasan' => $this->pengawasan->keadaan($peserta) + [
                 'aktif' => (bool) $peserta->ujian->proteksi_ketat,
                 'url' => route('siswa.ujian.pelanggaran', $peserta),
@@ -214,7 +220,13 @@ class UjianSiswaController extends Controller
     {
         $this->pastikanMilikSiswa($peserta);
 
-        $this->pengerjaan->selesaikan($peserta);
+        try {
+            $this->pengerjaan->selesaikanOlehSiswa($peserta);
+        } catch (\RuntimeException $e) {
+            // Kembali ke lembarnya, bukan ke halaman hasil: jawaban peserta
+            // masih utuh dan ujiannya memang belum dikumpulkan.
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect()->route('siswa.ujian.hasil', $peserta)
             ->with('success', 'Lembar jawaban Anda berhasil dikumpulkan.');

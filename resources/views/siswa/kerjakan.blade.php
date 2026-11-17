@@ -231,11 +231,20 @@
                             Berikutnya<i class="bi bi-chevron-right ms-1"></i>
                         </button>
                     @else
-                        <button class="btn btn-ujian" data-bs-toggle="modal" data-bs-target="#modalSelesai">
+                        <button class="btn btn-ujian tombol-selesai" data-bs-toggle="modal" data-bs-target="#modalSelesai"
+                                @disabled(! $bolehKumpul)>
                             <i class="bi bi-check2-circle me-1"></i>Selesai &amp; Kumpulkan
                         </button>
                     @endif
                 </div>
+
+                {{-- Keterangan ambang pada butir terakhir: di situlah siswa
+                     yang sudah merasa selesai mencari tombol kumpulkan, dan
+                     tombol mati tanpa alasan akan dibaca sebagai lembar
+                     rusak — bukan sebagai aturan ujian. --}}
+                @if ($ambangKumpulDetik > 0 && $j->nomor_urut >= $jawaban->count())
+                    @include('siswa.partials.catatan-selesai', ['kelas' => 'mx-3 mb-3'])
+                @endif
             </div>
         @endforeach
     </div>
@@ -284,9 +293,14 @@
                     <i class="bi bi-cloud-check me-1"></i>Jawaban tersimpan otomatis
                 </div>
 
-                <button class="btn btn-ujian w-100 py-2 mt-3" data-bs-toggle="modal" data-bs-target="#modalSelesai">
+                <button class="btn btn-ujian w-100 py-2 mt-3 tombol-selesai" data-bs-toggle="modal"
+                        data-bs-target="#modalSelesai" @disabled(! $bolehKumpul)>
                     <i class="bi bi-check2-circle me-1"></i>Selesai &amp; Kumpulkan
                 </button>
+
+                @if ($ambangKumpulDetik > 0)
+                    @include('siswa.partials.catatan-selesai', ['kelas' => 'mt-2'])
+                @endif
             </div>
         </div>
     </div>
@@ -311,7 +325,12 @@
                 <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Periksa lagi</button>
                 <form method="POST" action="{{ route('siswa.ujian.selesai', $peserta) }}">
                     @csrf
-                    <button class="btn btn-ujian"><i class="bi bi-check2-circle me-1"></i>Ya, Kumpulkan</button>
+                    {{-- Ikut dimatikan walau modal ini hanya terbuka dari tombol
+                         yang sudah aktif: tanpa itu, modal yang sempat terbuka
+                         tepat sebelum ambang berubah masih bisa dikirim. --}}
+                    <button class="btn btn-ujian tombol-selesai" @disabled(! $bolehKumpul)>
+                        <i class="bi bi-check2-circle me-1"></i>Ya, Kumpulkan
+                    </button>
                 </form>
             </div>
         </div>
@@ -443,6 +462,15 @@
         background:#fffaf0; border:1px solid #ffe1a8; color:#8a5a00;
         border-radius:.6rem; padding:.75rem .9rem; font-size:.87rem;
     }
+
+    /* Keterangan ambang tombol Selesai. Warnanya sengaja sama dengan kotak
+       "masih ada soal kosong": keduanya sama-sama kabar menunggu, bukan
+       galat — lembar jawabannya sendiri tidak sedang bermasalah. */
+    .catatan-selesai {
+        display:flex; gap:.6rem; align-items:flex-start;
+        background:#fffaf0; border:1px solid #ffe1a8; color:#8a5a00;
+        border-radius:.6rem; padding:.6rem .75rem; font-size:.82rem; line-height:1.35;
+    }
 </style>
 @endpush
 
@@ -462,6 +490,8 @@
     const urlDenyut  = @json(route('siswa.ujian.pengawasan', $peserta));
     const csrf       = document.querySelector('meta[name=csrf-token]').content;
     const totalSoal  = @json($jawaban->count());
+    // Ambang tombol "Selesai" dalam detik; 0 berarti bebas kapan saja.
+    const ambangKumpul = @json($ambangKumpulDetik);
 
     let sisaDetik = @json($sisaDetik);
     // Soal yang sudah terisi menurut server saat halaman dimuat.
@@ -489,10 +519,36 @@
             jam.classList.add('text-bg-danger', 'text-white');
         }
 
+        perbaruiTombolSelesai();
+
         if (sisaDetik === 0) {
             alert('Waktu ujian habis. Lembar jawaban Anda dikumpulkan otomatis.');
             kumpulkanOtomatis();
         }
+    }
+
+    /*
+     * Buka tombol "Selesai & Kumpulkan" begitu ambangnya tercapai.
+     *
+     * Dihitung dari sisaDetik yang sama dengan hitung mundur di layar — dan
+     * yang diselaraskan ulang dengan server tiap kali jawaban tersimpan —
+     * sehingga tombolnya terbuka sendiri tanpa memuat ulang halaman. Yang
+     * memutuskan tetap server saat tombolnya ditekan: perubahan di sini
+     * hanya mengatur tampilan.
+     */
+    function perbaruiTombolSelesai() {
+        const boleh = ambangKumpul <= 0 || sisaDetik <= ambangKumpul;
+        const tunggu = boleh ? 0 : sisaDetik - ambangKumpul;
+
+        document.querySelectorAll('.tombol-selesai').forEach(function (tombol) {
+            tombol.disabled = !boleh;
+        });
+        document.querySelectorAll('.catatan-selesai').forEach(function (catatan) {
+            catatan.style.display = boleh ? 'none' : '';
+        });
+        document.querySelectorAll('.teks-tunggu').forEach(function (teks) {
+            teks.textContent = formatWaktu(tunggu);
+        });
     }
 
     function kumpulkanOtomatis() {
@@ -578,6 +634,9 @@
             sisaDetik = data.sisa_detik;
             sudahDijawab = new Set(data.soal_terjawab);
             perbaruiNavigasi();
+            // Sisa waktu baru saja diselaraskan dengan server; tombol Selesai
+            // ikut menyesuaikan sekarang, tidak menunggu detik berikutnya.
+            perbaruiTombolSelesai();
             statusSimpan('Tersimpan ' + new Date().toLocaleTimeString('id-ID'), 'bi-cloud-check', 'text-success');
         } catch (e) {
             // Jawaban tetap ada di layar; siswa diberi tahu agar mencoba lagi.

@@ -173,6 +173,23 @@ class Referensi
             fn () => static::normalJenjang(Sekolah::profil()?->jenjang) ?? '') ?: null;
     }
 
+    /**
+     * URL logo sekolah milik Data Center, untuk kop halaman dan kartu
+     * peserta — atau null bila di sana belum ada logonya.
+     *
+     * Dipakai tata letak yang tampil di setiap halaman, jadi jawabannya
+     * ditahan sepanjang request: tanpa itu tiap halaman menanyakan profil
+     * sekolah ke Data Center sekali lagi. Sama seperti jenjang di atas,
+     * ketiadaan logo disimpan sebagai '' karena null tidak tertahan.
+     */
+    public static function urlLogoSekolah(): ?string
+    {
+        // Logo hanyalah hiasan kop: kalau Data Center sedang tak terjangkau,
+        // halaman masuk dan bilah atas tetap harus tampil.
+        return static::ingat('url_logo_sekolah',
+            fn () => rescue(fn () => Sekolah::profil()?->urlLogo(), null, false) ?? '') ?: null;
+    }
+
     /** Pilihan jurusan hanya muncul di jenjang SMA dan SMK. */
     public static function pakaiJurusan(): bool
     {

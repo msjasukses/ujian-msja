@@ -243,6 +243,42 @@ class PengerjaanUjianService
         };
     }
 
+    /**
+     * Pengumpulan atas kehendak peserta sendiri — tombol "Selesai &
+     * Kumpulkan" di lembar peramban maupun di aplikasi ponsel.
+     *
+     * Dipisahkan dari selesaikan() justru karena hanya jalur inilah yang
+     * tunduk pada ambang menit_boleh_kumpul. Penyerahan otomatis saat waktu
+     * habis dan penutupan paksa oleh pengawas memanggil selesaikan()
+     * langsung, jadi tidak pernah ikut tertahan ambang ini.
+     *
+     * Aturannya ditegakkan di sini, bukan di tampilan: tombol yang dimatikan
+     * hanya menyembunyikan jalannya, sedangkan alamat "selesai" tetap bisa
+     * dipanggil sendiri dari luar halaman.
+     *
+     * @throws \RuntimeException bila ambang belum tercapai.
+     */
+    public function selesaikanOlehSiswa(UjianPeserta $peserta): UjianPeserta
+    {
+        if (! $peserta->bolehKumpulkan()) {
+            throw new \RuntimeException($this->alasanBelumBolehKumpul($peserta));
+        }
+
+        return $this->selesaikan($peserta);
+    }
+
+    /** Keterangan untuk peserta: mengapa ditolak dan kapan boleh. */
+    protected function alasanBelumBolehKumpul(UjianPeserta $peserta): string
+    {
+        // Dibulatkan ke atas supaya "1 menit lagi" tidak terbaca "0 menit
+        // lagi" pada detik-detik terakhir sebelum tombolnya terbuka.
+        $menit = (int) ceil($peserta->detikMenungguKumpul() / 60);
+
+        return 'Lembar jawaban belum boleh dikumpulkan. Tombol Selesai terbuka '
+            .$peserta->ujian->menit_boleh_kumpul.' menit sebelum waktu pengerjaan Anda berakhir'
+            .($menit > 0 ? ', sekitar '.$menit.' menit lagi.' : '.');
+    }
+
     /** Kumpulkan lembar jawaban dan koreksi otomatis. */
     public function selesaikan(UjianPeserta $peserta, string $event = 'selesai'): UjianPeserta
     {
