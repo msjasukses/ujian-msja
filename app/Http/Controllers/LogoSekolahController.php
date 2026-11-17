@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sekolah;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -23,13 +22,10 @@ class LogoSekolahController extends Controller
     {
         // Data Center tak terjangkau diperlakukan sama seperti tak berlogo:
         // halaman yang memuat gambar ini tidak boleh ikut gagal.
-        $logo = rescue(fn () => Sekolah::profil()?->pathLogo(), null, false);
+        $berkas = rescue(fn () => Sekolah::profil()?->pathLogo(), null, false);
 
-        abort_if($logo === null, 404);
+        abort_if($berkas === null, 404);
 
-        return response()
-            ->file(Storage::disk('datacenter')->path($logo))
-            ->setPublic()
-            ->setMaxAge(3600);
+        return response()->file($berkas)->setPublic()->setMaxAge(3600);
     }
 }
