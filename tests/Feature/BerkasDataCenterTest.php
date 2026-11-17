@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Support\LogoSekolah;
+use App\Support\BerkasDataCenter;
 use Tests\TestCase;
 
 /**
@@ -14,7 +14,7 @@ use Tests\TestCase;
  * walau tidak ada satu pun calon yang benar, tanpa salah menunjuk berkas lain
  * yang kebetulan bernama sama.
  */
-class LogoSekolahTest extends TestCase
+class BerkasDataCenterTest extends TestCase
 {
     protected string $akar;
 
@@ -32,7 +32,7 @@ class LogoSekolahTest extends TestCase
         @mkdir($unggahan.'/sekolah', 0777, true);
         file_put_contents($unggahan.'/'.$this->logo, 'bukan-gambar-sungguhan');
 
-        LogoSekolah::lupakan($this->logo);
+        BerkasDataCenter::lupakan($this->logo);
 
         config([
             'datacenter.akar_unggahan' => [$this->akar.'/tidak-ada/storage/app/public'],
@@ -42,7 +42,7 @@ class LogoSekolahTest extends TestCase
 
     protected function tearDown(): void
     {
-        LogoSekolah::lupakan($this->logo);
+        BerkasDataCenter::lupakan($this->logo);
         $this->hapus($this->akar);
 
         parent::tearDown();
@@ -50,7 +50,7 @@ class LogoSekolahTest extends TestCase
 
     public function test_logo_ketemu_walau_tak_satu_pun_calon_benar(): void
     {
-        $berkas = LogoSekolah::path($this->logo);
+        $berkas = BerkasDataCenter::path($this->logo);
 
         $this->assertNotNull($berkas, 'Berkas logo seharusnya ketemu lewat penyisiran.');
         $this->assertStringEndsWith('berkas-unggahan'.DIRECTORY_SEPARATOR
@@ -60,17 +60,17 @@ class LogoSekolahTest extends TestCase
     /** Sekali ketemu, akarnya diingat supaya halaman berikutnya tidak menyisir lagi. */
     public function test_letak_yang_sudah_ketemu_diingat(): void
     {
-        LogoSekolah::path($this->logo);
+        BerkasDataCenter::path($this->logo);
 
         $this->assertSame(
             $this->garisMiring($this->akar.'/aplikasi-entah-apa/berkas-unggahan'),
-            $this->garisMiring((string) LogoSekolah::akarDiingat()),
+            $this->garisMiring((string) BerkasDataCenter::akarDiingat()),
         );
 
         // Tanpa direktori pencarian sama sekali, akar yang diingat sudah cukup.
         config(['datacenter.akar_pencarian' => []]);
 
-        $this->assertNotNull(LogoSekolah::cari($this->logo));
+        $this->assertNotNull(BerkasDataCenter::cari($this->logo));
     }
 
     /**
@@ -82,14 +82,14 @@ class LogoSekolahTest extends TestCase
         @mkdir($this->akar.'/aplikasi-lain/gambar', 0777, true);
         file_put_contents($this->akar.'/aplikasi-lain/gambar/uji-logo-datacenter.png', 'x');
 
-        $berkas = LogoSekolah::cari($this->logo);
+        $berkas = BerkasDataCenter::cari($this->logo);
 
         $this->assertStringNotContainsString('aplikasi-lain', (string) $berkas);
     }
 
     public function test_logo_yang_tidak_ada_di_mana_pun_bernilai_null(): void
     {
-        $this->assertNull(LogoSekolah::path('sekolah/tidak-pernah-ada.png'));
+        $this->assertNull(BerkasDataCenter::path('sekolah/tidak-pernah-ada.png'));
     }
 
     /** Samakan pemisah folder supaya perbandingannya tidak bergantung sistem. */

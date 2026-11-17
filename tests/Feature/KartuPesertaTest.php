@@ -205,6 +205,32 @@ class KartuPesertaTest extends TestCase
         $this->assertStringStartsWith('image/', (string) $berkas->headers->get('content-type'));
     }
 
+    /** Tanda tangan kepala sekolah ikut tercetak di ruang tanda tangan. */
+    public function test_tanda_tangan_kepala_sekolah_tercetak(): void
+    {
+        if (! Sekolah::profil()?->pathTtd()) {
+            $this->markTestSkipped('Profil sekolah di Data Center belum punya tanda tangan.');
+        }
+
+        $this->get('/kartu-peserta')->assertOk()
+            ->assertSee('src="'.route('ttd-kepala-sekolah').'"', false);
+
+        $berkas = $this->get(route('ttd-kepala-sekolah'))->assertOk();
+
+        $this->assertStringStartsWith('image/', (string) $berkas->headers->get('content-type'));
+    }
+
+    /**
+     * Tanda tangan dipakai mengesahkan dokumen: tidak seperti logo, berkasnya
+     * tidak boleh bisa diunduh siapa pun yang menebak alamatnya.
+     */
+    public function test_tanda_tangan_tertutup_untuk_yang_belum_masuk(): void
+    {
+        auth('web')->logout();
+
+        $this->get(route('ttd-kepala-sekolah'))->assertRedirect(route('login'));
+    }
+
     /**
      * Nilai kolom sekolah.logo menentukan berkas mana yang dibuka, dan
      * datangnya dari aplikasi lain: lintasan direktori tidak boleh dilayani.

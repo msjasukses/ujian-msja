@@ -5,8 +5,9 @@
 | Berkas unggahan aplikasi Data Center (READ-ONLY)
 |------------------------------------------------------------------------------
 |
-| Dipakai membaca logo sekolah untuk kop kartu peserta dan kepala halaman.
-| Kolom sekolah.logo di database Data Center menyimpan path relatif seperti
+| Dipakai membaca logo sekolah dan tanda tangan kepala sekolah untuk kartu
+| peserta dan kepala halaman.
+| Kolomnya di database Data Center menyimpan path relatif seperti
 | "sekolah/logo.png", bukan URL, jadi aplikasi ini perlu tahu direktori mana
 | yang menjadi akarnya.
 |
@@ -16,7 +17,7 @@
 | di bawah tidak menebak nama: setiap folder tetangga diperiksa apakah ia
 | sebuah aplikasi Laravel berisi direktori unggahan, berapa pun jumlahnya.
 |
-| Bila tetap tidak ketemu, App\Support\LogoSekolah menyisir "akar_pencarian"
+| Bila tetap tidak ketemu, App\Support\BerkasDataCenter menyisir "akar_pencarian"
 | sampai menemukan berkasnya, lalu mengingat letaknya. Jadi penempatan yang
 | tidak terduga pun tetap terbaca tanpa menyetel apa pun.
 |

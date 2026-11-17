@@ -10,6 +10,7 @@
     $jumlahKartu = $kartuPerKelas->sum(fn ($k) => $k->count());
     $namaSekolah = $sekolah?->nama_sekolah ?? config('app.name');
     $urlLogo = $sekolah?->urlLogo();
+    $urlTtd = $sekolah?->urlTtd();
 @endphp
 
 <div class="card mb-3 no-print">
@@ -168,7 +169,14 @@
                                 <div class="kartu-ttd">
                                     {{ $sekolah?->kabupaten ? $sekolah->kabupaten.', ' : '' }}{{ now()->translatedFormat('j F Y') }}<br>
                                     Kepala Sekolah,
-                                    <div class="ruang-ttd"></div>
+                                    {{-- Tanda tangan kepala sekolah dari Data Center;
+                                         ruang kosong untuk tanda tangan basah bila
+                                         di sana belum ada berkasnya. --}}
+                                    <div class="ruang-ttd">
+                                        @if ($urlTtd)
+                                            <img src="{{ $urlTtd }}" alt="">
+                                        @endif
+                                    </div>
                                     <div class="tebal">{{ $sekolah?->kepala_sekolah ?: '..............................' }}</div>
                                     @if ($sekolah?->nip_kepala_sekolah)
                                         <div>NIP. {{ $sekolah->nip_kepala_sekolah }}</div>
@@ -237,7 +245,13 @@
     .kartu-kaki { display:flex; align-items:flex-end; gap:3mm; margin-top:2mm; font-size:7pt; }
     .kartu-catatan { color:#555; flex:1 1 auto; min-width:0; font-size:6.5pt; line-height:1.3; }
     .kartu-ttd { text-align:center; flex:none; }
-    .ruang-ttd { height:8mm; }
+    /*
+        Tingginya tetap 8 mm dengan atau tanpa gambar: tinggi kartu
+        menentukan berapa baris yang muat selembar A4, dan tanda tangan yang
+        memuai akan menggeser kartu terakhir ke halaman berikutnya.
+    */
+    .ruang-ttd { height:8mm; display:grid; place-items:center; }
+    .ruang-ttd img { max-height:8mm; max-width:100%; object-fit:contain; }
 
     .tebal { font-weight:700; }
     .redup { color:#666; font-style:italic; }
