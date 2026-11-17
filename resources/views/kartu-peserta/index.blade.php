@@ -15,6 +15,11 @@
 <div class="card mb-3 no-print">
     <div class="card-body">
         <form class="row g-2 align-items-end">
+            {{-- Penanda bahwa form ini dikirim: lihat KartuPesertaController::jadwalTerpilih().
+                 Tanpa penanda, kolom jadwal yang sengaja dikosongkan tidak bisa
+                 dibedakan dari kunjungan pertama ke halaman ini. --}}
+            <input type="hidden" name="saring" value="1">
+
             <div class="col-12">
                 <label class="form-label">Jadwal ujian</label>
                 <select name="ujian_id[]" class="form-select form-select-sm" multiple data-placeholder="Pilih jadwal">
@@ -24,7 +29,10 @@
                         </option>
                     @endforeach
                 </select>
-                <div class="form-text">Bawaannya semua jadwal yang belum lewat.</div>
+                <div class="form-text">
+                    Bawaannya semua jadwal yang belum lewat. Boleh dikosongkan — kartunya tetap
+                    tercetak, tanpa tabel jadwal, berisi siswa kelas terpilih.
+                </div>
             </div>
             <div class="col-6 col-md-3">
                 <label class="form-label">Kelas</label>
@@ -58,14 +66,18 @@
     </div>
 </div>
 
-@if ($terpilih->isEmpty())
+@if ($jumlahKartu === 0)
     <div class="alert alert-light border no-print">
-        <i class="bi bi-info-circle me-1"></i>Pilih minimal satu jadwal ujian untuk mencetak kartunya.
-    </div>
-@elseif ($jumlahKartu === 0)
-    <div class="alert alert-light border no-print">
-        <i class="bi bi-info-circle me-1"></i>Belum ada peserta terdaftar pada jadwal dan kelas terpilih.
-        Daftarkan kelas peserta lalu tekan <strong>Sinkron Peserta</strong> di menu Registrasi Ujian.
+        <i class="bi bi-info-circle me-1"></i>
+        @if ($tanpaJadwal)
+            Belum ada siswa aktif pada kelas terpilih di Data Center.
+        @elseif ($terpilih->isEmpty())
+            Tidak ada jadwal ujian terpilih. Pilih jadwalnya, atau kosongkan kolom jadwal
+            untuk mencetak kartu tanpa tabel jadwal.
+        @else
+            Belum ada peserta terdaftar pada jadwal dan kelas terpilih.
+            Daftarkan kelas peserta lalu tekan <strong>Sinkron Peserta</strong> di menu Registrasi Ujian.
+        @endif
     </div>
 @else
     <div class="alert alert-light border small no-print">
@@ -73,6 +85,18 @@
         Pratinjau di bawah ini adalah hasil cetaknya: kertas A4 tegak, dua kartu per baris, dan tiap kelas
         mulai di halaman baru. Pada jendela cetak, aktifkan <em>Background graphics</em> agar warna kop ikut tercetak.
     </div>
+
+    @unless ($urlLogo)
+        {{-- Logo yang tidak tampil tidak menggagalkan apa pun, jadi tanpa
+             keterangan ini operator hanya melihat lambang bawaan dan tidak
+             tahu ada yang perlu dibereskan. --}}
+        <div class="small text-muted no-print mb-3">
+            <i class="bi bi-image me-1"></i>
+            Kop memakai lambang bawaan karena logo sekolah belum terbaca dari Data Center.
+            Unggah logonya di aplikasi Data Center (Pengaturan → Profil Sekolah); bila di sana
+            sudah ada, jalankan <code>php artisan sekolah:cek-logo</code> untuk melihat penyebabnya.
+        </div>
+    @endunless
 
     <div class="lembar">
         @foreach ($kartuPerKelas as $kelas => $daftarKartu)
@@ -108,6 +132,8 @@
                                 <tr><td>Username</td><td>:</td><td class="mono tebal">{{ $k->siswa->nisn ?: '-' }}</td></tr>
                             </table>
 
+                            {{-- Kartu tanpa jadwal dicetak tanpa tabel ini. --}}
+                            @if ($k->jadwal->isNotEmpty())
                             <table class="kartu-jadwal">
                                 <thead>
                                     <tr><th style="width:5mm">No</th><th>Mata pelajaran</th><th>Hari, tanggal</th><th>Jam</th></tr>
@@ -127,6 +153,7 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            @endif
 
                             {{-- Foto di kiri bawah, berdampingan dengan tanda tangan:
                                  bila foto di samping identitas, tinggi kotak foto

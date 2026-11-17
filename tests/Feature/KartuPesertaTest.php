@@ -8,9 +8,11 @@ use App\Models\PaketSoal;
 use App\Models\RombonganBelajar;
 use App\Models\Sekolah;
 use App\Models\Siswa;
+use App\Models\SiswaRombel;
 use App\Models\Ujian;
 use App\Models\UjianPeserta;
 use App\Models\User;
+use App\Support\Referensi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Testing\TestResponse;
@@ -133,6 +135,56 @@ class KartuPesertaTest extends TestCase
             ->assertOk()
             ->assertSee('Cetak Kartu Peserta')
             ->assertSee(route('kartu-peserta.index', ['ujian_id' => [$this->ujianSatu->id]]), false);
+    }
+
+    /**
+     * Kolom jadwal boleh dikosongkan: sekolah membagikan kartu sebelum
+     * jadwalnya terbit, dan kartunya tetap berguna karena nomor peserta serta
+     * username-nya sudah tercetak.
+     */
+    public function test_kartu_tercetak_tanpa_memilih_jadwal(): void
+    {
+        if ($this->siswaBerkelas() === 0) {
+            $this->markTestSkipped('Data Center belum berisi penempatan kelas pada tahun ajaran aktif.');
+        }
+
+        $halaman = $this->get('/kartu-peserta?saring=1')->assertOk();
+
+        // Tanpa jadwal, tabel jadwalnya tidak ikut tercetak.
+        $halaman->assertDontSee('Mata pelajaran')->assertSee('KARTU PESERTA UJIAN');
+
+        // Pesertanya datang dari penempatan kelas di Data Center, bukan dari
+        // tabel peserta ujian - jadi kelas yang belum punya jadwal pun ikut.
+        $this->assertSame($this->siswaBerkelas(), $this->jumlahKartu($halaman));
+    }
+
+    /** Satu kelas saja, tetap tanpa jadwal. */
+    public function test_kartu_tanpa_jadwal_tersaring_menurut_kelas(): void
+    {
+        if ($this->siswaBerkelas() === 0) {
+            $this->markTestSkipped('Data Center belum berisi penempatan kelas pada tahun ajaran aktif.');
+        }
+
+        $kelas = Referensi::rombel()->first();
+        $halaman = $this->get('/kartu-peserta?saring=1&rombongan_belajar_id='.$kelas->id)->assertOk();
+
+        $this->assertSame($this->siswaBerkelas($kelas->id), $this->jumlahKartu($halaman));
+        $halaman->assertSee('Kelas '.$kelas->nama_rombel);
+    }
+
+    /** Siswa aktif yang punya penempatan kelas pada tahun ajaran aktif. */
+    protected function siswaBerkelas(?int $rombelId = null): int
+    {
+        return SiswaRombel::where('tahun_ajaran_id', Referensi::tahunAjaranAktif()?->id)
+            ->whereIn('rombongan_belajar_id', $rombelId ? [$rombelId] : Referensi::rombel()->pluck('id'))
+            ->whereIn('siswa_id', Siswa::aktif()->pluck('id'))
+            ->distinct()->count('siswa_id');
+    }
+
+    /** Tanpa penanda form, bawaannya tetap jadwal yang belum lewat. */
+    public function test_kunjungan_pertama_tetap_memakai_jadwal_bawaan(): void
+    {
+        $this->get('/kartu-peserta')->assertOk()->assertSee('Mata pelajaran');
     }
 
     /** Kop kartu memakai logo sekolah milik Data Center, bukan lambang bawaan. */

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\MilikGuru;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * Jadwal ujian hasil menu "Registrasi Ujian": memasangkan satu paket soal
@@ -144,9 +145,9 @@ class Ujian extends Model
      * belum tentu terdaftar di ujian_kelas — kelas asal peserta ikut dihitung
      * supaya rekap nilai tetap bisa disaring per kelas.
      *
-     * @return \Illuminate\Support\Collection<int, RombonganBelajar>
+     * @return Collection<int, RombonganBelajar>
      */
-    public function rombelDipakai(): \Illuminate\Support\Collection
+    public function rombelDipakai(): Collection
     {
         $ids = array_values(array_unique(array_merge(
             $this->rombelIds(),
@@ -175,9 +176,9 @@ class Ujian extends Model
      * Kelas moving peserta ujian ini, beserta anggotanya. Kosong berarti
      * pesertanya murni dipilih guru satu per satu.
      *
-     * @return \Illuminate\Support\Collection<int, KelasMoving>
+     * @return Collection<int, KelasMoving>
      */
-    public function kelasMovingDipakai(): \Illuminate\Support\Collection
+    public function kelasMovingDipakai(): Collection
     {
         $ids = $this->kelasMovingIds();
 

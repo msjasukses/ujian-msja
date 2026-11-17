@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\PaketSoal;
 use App\Models\Sekolah;
+use App\Models\Siswa;
+use App\Models\SiswaRombel;
 use App\Models\Ujian;
 use App\Models\UjianPeserta;
 use App\Support\Pengguna;
@@ -32,6 +34,7 @@ class KartuPesertaController extends Controller
             'ujian_id.*' => 'integer',
             'rombongan_belajar_id' => 'nullable|integer',
             'judul' => 'nullable|string|max:80',
+            'saring' => 'nullable',
         ]);
 
         $daftarUjian = Ujian::query()
@@ -40,21 +43,95 @@ class KartuPesertaController extends Controller
             ->orderBy('waktu_mulai')
             ->get();
 
-        // Bawaannya jadwal yang belum lewat: kartu dicetak menjelang ujian.
-        $terpilih = $r->filled('ujian_id')
-            ? $daftarUjian->whereIn('id', array_map('intval', $r->input('ujian_id')))
-            : $daftarUjian->filter(fn (Ujian $u) => $u->status !== Ujian::SELESAI && ! $u->sudah_lewat);
+        $terpilih = $this->jadwalTerpilih($r, $daftarUjian)->keyBy('id');
+        $rombelId = $r->integer('rombongan_belajar_id') ?: null;
 
-        $terpilih = $terpilih->keyBy('id');
+        // Kartu tanpa jadwal hanya ketika kolom jadwalnya memang dikosongkan.
+        // Jadwal yang diminta tetapi tidak terjangkau — misalnya milik guru
+        // lain — tidak boleh diam-diam berubah menjadi cetak satu sekolah.
+        $tanpaJadwal = $r->has('saring') && ! $r->filled('ujian_id');
 
         return view('kartu-peserta.index', [
             'daftarUjian' => $daftarUjian,
             'terpilih' => $terpilih,
-            'kartuPerKelas' => $this->kartu($terpilih, $r->integer('rombongan_belajar_id') ?: null),
+            'tanpaJadwal' => $tanpaJadwal,
+            'kartuPerKelas' => $tanpaJadwal
+                ? $this->kartuTanpaJadwal($rombelId)
+                : $this->kartu($terpilih, $rombelId),
             'judul' => $r->filled('judul') ? $r->input('judul') : $this->judulBawaan($terpilih),
             'periode' => $this->periode($terpilih),
             'sekolah' => Sekolah::profil(),
         ]);
+    }
+
+    /**
+     * Jadwal yang kartunya dicetak.
+     *
+     * Kolom jadwal boleh dikosongkan: sekolah kerap membagikan kartu sebelum
+     * jadwalnya terbit, dan kartu tanpa tabel jadwal tetap berguna karena
+     * nomor peserta serta username-nya sudah tercetak. Karena itu form ini
+     * membawa penanda "saring": kiriman form dengan kolom jadwal kosong
+     * memang berarti tanpa jadwal, sedangkan kunjungan pertama ke halaman
+     * ini — yang tidak membawa penanda apa pun — tetap memakai bawaannya,
+     * yaitu seluruh jadwal yang belum lewat.
+     *
+     * @param  Collection<int, Ujian>  $daftarUjian
+     * @return Collection<int, Ujian>
+     */
+    protected function jadwalTerpilih(Request $r, Collection $daftarUjian): Collection
+    {
+        if ($r->filled('ujian_id')) {
+            return $daftarUjian->whereIn('id', array_map('intval', $r->input('ujian_id')));
+        }
+
+        if ($r->has('saring')) {
+            return $daftarUjian->take(0);
+        }
+
+        return $daftarUjian->filter(fn (Ujian $u) => $u->status !== Ujian::SELESAI && ! $u->sudah_lewat);
+    }
+
+    /**
+     * Kartu tanpa jadwal, mis. dicetak sebelum jadwal ujian terbit.
+     *
+     * Pesertanya tidak bisa datang dari tabel peserta ujian — belum ada
+     * ujiannya — jadi daftarnya diambil langsung dari penempatan kelas di
+     * Data Center, disaring sama seperti Sinkron Peserta: hanya siswa aktif
+     * pada tahun ajaran aktif. Guru hanya memperoleh kelas yang diampunya,
+     * mengikuti daftar kelas yang sama dengan yang tampil di penyaring.
+     *
+     * @return Collection<string, Collection<int, object>>
+     */
+    protected function kartuTanpaJadwal(?int $rombelId): Collection
+    {
+        $rombel = Referensi::rombel(Pengguna::guruId());
+
+        if ($rombelId) {
+            $rombel = $rombel->where('id', $rombelId);
+        }
+
+        if ($rombel->isEmpty()) {
+            return collect();
+        }
+
+        $penempatan = SiswaRombel::whereIn('rombongan_belajar_id', $rombel->pluck('id')->all())
+            ->when(Referensi::tahunAjaranAktif()?->id, fn ($q, $tahunId) => $q->where('tahun_ajaran_id', $tahunId))
+            ->pluck('rombongan_belajar_id', 'siswa_id')
+            ->map('intval');
+
+        $siswa = Siswa::aktif()->whereIn('id', $penempatan->keys()->all() ?: [0])->get()->keyBy('id');
+        $namaKelas = $rombel->pluck('nama_rombel', 'id');
+
+        return $this->kelompokkan(
+            $penempatan
+                ->filter(fn ($idRombel, $idSiswa) => $siswa->has($idSiswa))
+                ->map(fn ($idRombel, $idSiswa) => (object) [
+                    'siswa' => $siswa[$idSiswa],
+                    'kelas' => $namaKelas[$idRombel] ?? null,
+                    'nomor' => $siswa[$idSiswa]->nis,
+                    'jadwal' => collect(),
+                ])
+        );
     }
 
     /**
@@ -87,7 +164,19 @@ class KartuPesertaController extends Controller
                         ->sortBy('waktu_mulai')->values(),
                 ];
             })
-            // Nama kelas diurutkan alami: 7-2 sebelum 7-10.
+            ->pipe(fn (Collection $kartu) => $this->kelompokkan($kartu));
+    }
+
+    /**
+     * Kartu diurutkan lalu dikelompokkan per kelas. Nama kelas diurutkan
+     * alami: 7-2 sebelum 7-10.
+     *
+     * @param  Collection<int, object>  $kartu
+     * @return Collection<string, Collection<int, object>>
+     */
+    protected function kelompokkan(Collection $kartu): Collection
+    {
+        return $kartu
             ->sortBy([
                 fn ($a, $b) => strnatcasecmp((string) $a->kelas, (string) $b->kelas),
                 fn ($a, $b) => strcasecmp($a->siswa->nama_siswa, $b->siswa->nama_siswa),
