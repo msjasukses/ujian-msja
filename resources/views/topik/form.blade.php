@@ -64,8 +64,8 @@
                 <div class="card-header">Penempatan</div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label">Mata pelajaran</label>
-                        <x-pilih-mapel :value="$item->mata_pelajaran_id" />
+                        <label class="form-label">Mata pelajaran <span class="text-danger">*</span></label>
+                        <x-pilih-mapel :value="$item->mata_pelajaran_id" required />
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Tingkat kelas</label>

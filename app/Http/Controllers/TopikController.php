@@ -184,7 +184,12 @@ class TopikController extends Controller
         return $r->validate([
             'kode_topik' => 'nullable|string|max:40',
             'nama_topik' => 'required|string|max:255',
-            'mata_pelajaran_id' => Referensi::aturanMapel($r->route('topik')?->mata_pelajaran_id),
+            // Topik tanpa mata pelajaran tidak menuntun apa pun: ia tidak
+            // terjaring penyaring mapel, tidak bisa mengisi penempatan soal
+            // yang memakainya, dan di daftar topik hanya tampil sebagai "-".
+            // Satu-satunya gunanya dulu adalah menunda pengisian - dan yang
+            // ditunda begitu nyaris tidak pernah kembali diisi.
+            'mata_pelajaran_id' => Referensi::aturanMapel($r->route('topik')?->mata_pelajaran_id, wajib: true),
             'tingkat_kelas_id' => Referensi::aturanTingkat($r->route('topik')?->tingkat_kelas_id),
             ...Referensi::aturanJurusan($r->route('topik')?->jurusan_id),
             'fase' => 'nullable|string|max:10',
@@ -197,6 +202,11 @@ class TopikController extends Controller
             'indikator_kktp' => 'nullable|string',
             'urutan' => 'nullable|integer|min:0|max:9999',
             'is_aktif' => 'nullable|boolean',
+        ], [
+            // Tanpa ini pesannya berbunyi "The mata pelajaran id field is
+            // required" - nama kolom database, dalam bahasa yang bukan
+            // bahasa layar ini.
+            'mata_pelajaran_id.required' => 'Mata pelajaran wajib dipilih.',
         ]) + ['is_aktif' => $r->boolean('is_aktif')];
     }
 }

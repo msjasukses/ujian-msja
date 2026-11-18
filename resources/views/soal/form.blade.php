@@ -310,7 +310,11 @@
                         <select name="topik_id" class="form-select">
                             <option value="">— tanpa topik —</option>
                             @foreach ($daftarTopik as $t)
-                                <option value="{{ $t->id }}" @selected(old('topik_id', $item->topik_id) == $t->id)>
+                                {{-- Penempatan topik ikut dibawa ke tiap pilihan; yang
+                                     memakainya ada di partials/penempatan-ikut-topik. --}}
+                                <option value="{{ $t->id }}"
+                                        data-mapel="{{ $t->mata_pelajaran_id }}" data-tingkat="{{ $t->tingkat_kelas_id }}" data-jurusan="{{ $t->jurusan_id }}"
+                                        @selected(old('topik_id', $item->topik_id) == $t->id)>
                                     {{ Str::limit($t->nama_topik, 70) }}
                                 </option>
                             @endforeach
@@ -394,6 +398,7 @@
 </form>
 
 @include('soal.partials.template-soal')
+@include('partials.penempatan-ikut-topik')
 
 @push('head')
 <style>

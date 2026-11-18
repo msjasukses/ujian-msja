@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MataPelajaran;
 use App\Models\Topik;
 use App\Models\User;
 use App\Support\Referensi;
@@ -18,6 +19,9 @@ class PilihanTahunAjaranTest extends TestCase
 
     protected string $aktif;
 
+    /** Topik wajib bermata pelajaran, jadi tiap kiriman di bawah membawanya. */
+    protected int $mapelId;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,6 +33,14 @@ class PilihanTahunAjaranTest extends TestCase
         }
 
         $this->aktif = $aktif;
+
+        $mapel = MataPelajaran::aktif()->first();
+
+        if (! $mapel) {
+            $this->markTestSkipped('Database datacenter belum berisi mata pelajaran.');
+        }
+
+        $this->mapelId = $mapel->id;
 
         $this->actingAs(User::create([
             'name' => 'Admin Uji', 'email' => 'uji@ujian.test', 'password' => 'rahasia123',
@@ -51,10 +63,12 @@ class PilihanTahunAjaranTest extends TestCase
 
     public function test_tahun_ajaran_di_luar_data_center_ditolak(): void
     {
-        $this->post('/topik', ['nama_topik' => 'Coba', 'tahun_ajaran' => '1999/2000'])
+        $kiriman = ['nama_topik' => 'Coba', 'mata_pelajaran_id' => $this->mapelId];
+
+        $this->post('/topik', $kiriman + ['tahun_ajaran' => '1999/2000'])
             ->assertSessionHasErrors('tahun_ajaran');
 
-        $this->post('/topik', ['nama_topik' => 'Coba', 'tahun_ajaran' => $this->aktif])
+        $this->post('/topik', $kiriman + ['tahun_ajaran' => $this->aktif])
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('topik', ['nama_topik' => 'Coba', 'tahun_ajaran' => $this->aktif]);
@@ -62,14 +76,22 @@ class PilihanTahunAjaranTest extends TestCase
 
     public function test_nilai_lama_tetap_bisa_disimpan_ulang(): void
     {
-        $topik = Topik::create(['nama_topik' => 'Lama', 'sumber' => Topik::SUMBER_MANUAL, 'tahun_ajaran' => '2019/2020']);
+        $topik = Topik::create([
+            'nama_topik' => 'Lama',
+            'mata_pelajaran_id' => $this->mapelId,
+            'sumber' => Topik::SUMBER_MANUAL,
+            'tahun_ajaran' => '2019/2020',
+        ]);
 
         $this->get("/topik/{$topik->id}/edit")
             ->assertOk()
             ->assertSee('2019/2020 (tidak ada di Data Center)');
 
-        $this->put("/topik/{$topik->id}", ['nama_topik' => 'Lama diubah', 'tahun_ajaran' => '2019/2020'])
-            ->assertSessionHasNoErrors();
+        $this->put("/topik/{$topik->id}", [
+            'nama_topik' => 'Lama diubah',
+            'mata_pelajaran_id' => $this->mapelId,
+            'tahun_ajaran' => '2019/2020',
+        ])->assertSessionHasNoErrors();
 
         $this->assertSame('2019/2020', $topik->fresh()->tahun_ajaran);
     }

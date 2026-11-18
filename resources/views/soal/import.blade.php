@@ -165,7 +165,11 @@
                             <select name="topik_id" class="form-select">
                                 <option value="">— tanpa topik —</option>
                                 @foreach ($daftarTopik as $t)
-                                    <option value="{{ $t->id }}" @selected(old('topik_id') == $t->id)>
+                                    {{-- Penempatan topik ikut dibawa ke tiap pilihan; yang
+                                         memakainya ada di partials/penempatan-ikut-topik. --}}
+                                    <option value="{{ $t->id }}"
+                                            data-mapel="{{ $t->mata_pelajaran_id }}" data-tingkat="{{ $t->tingkat_kelas_id }}" data-jurusan="{{ $t->jurusan_id }}"
+                                            @selected(old('topik_id') == $t->id)>
                                         {{ Str::limit($t->nama_topik, 70) }}
                                     </option>
                                 @endforeach
@@ -324,5 +328,9 @@ PEMBAHASAN: Bandung ibu kota Jabar.</pre>
         gantiSumber();
     </script>
     @endpush
+
+    {{-- Nilai di bawah topik dipasang ke seluruh butir hasil import, jadi
+         salah satu saja yang keliru menyeret satu berkas penuh sekaligus. --}}
+    @include('partials.penempatan-ikut-topik')
 @endif
 @endsection

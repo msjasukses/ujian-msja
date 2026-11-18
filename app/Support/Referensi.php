@@ -86,10 +86,15 @@ class Referensi
      * dropdown pengguna ini. $nilaiLama (isi data yang sedang diubah) tetap
      * diterima supaya data buatan admin bisa disimpan ulang oleh guru tanpa
      * kehilangan penempatannya.
+     *
+     * $wajib membuat kolomnya tidak boleh kosong. Bawaannya tetap boleh
+     * kosong karena di sebagian besar formulir memang begitu - soal, paket
+     * soal, dan import boleh disimpan tanpa penempatan, lalu dilengkapi
+     * belakangan. Yang meminta wajib hanya menu Topik.
      */
-    public static function aturanMapel(int|string|null $nilaiLama = null): array
+    public static function aturanMapel(int|string|null $nilaiLama = null, bool $wajib = false): array
     {
-        return static::aturanPilihan(static::mapel()->pluck('id')->all(), $nilaiLama);
+        return static::aturanPilihan(static::mapel()->pluck('id')->all(), $nilaiLama, $wajib);
     }
 
     public static function aturanTingkat(int|string|null $nilaiLama = null): array
@@ -114,13 +119,13 @@ class Referensi
         return ['jurusan_id' => static::aturanPilihan(static::jurusan()->pluck('id')->all(), $nilaiLama)];
     }
 
-    protected static function aturanPilihan(array $boleh, int|string|null $nilaiLama): array
+    protected static function aturanPilihan(array $boleh, int|string|null $nilaiLama, bool $wajib = false): array
     {
         if (filled($nilaiLama)) {
             $boleh[] = (int) $nilaiLama;
         }
 
-        return ['nullable', 'integer', Rule::in(array_unique($boleh))];
+        return [$wajib ? 'required' : 'nullable', 'integer', Rule::in(array_unique($boleh))];
     }
 
     /**
