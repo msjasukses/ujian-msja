@@ -202,14 +202,47 @@
             'log '.$kotak.'^{'.$kotak.'} = '.$kotak.' log '.$kotak,
         ],
 
-        'Kalkulus' => [
+        /*
+         * Limit, integral, dan turunan dipisah menjadi tiga kelompok, bukan
+         * satu "Kalkulus" yang panjang. Ketiganya diajarkan sebagai bab
+         * tersendiri dan hampir tidak pernah dipakai dalam satu butir soal
+         * yang sama; disatukan, guru harus menyisir belasan bentuk hanya
+         * untuk menemukan satu.
+         */
+        'Limit' => [
             'lim_{'.$kotak.' \to '.$kotak.'} '.$kotak,
+            'lim_{'.$kotak.' \to \infty} '.$kotak,
+            'lim_{'.$kotak.' \to '.$kotak.'} \frac{f('.$kotak.')}{g('.$kotak.')}',
+            'lim_{'.$kotak.' \to '.$kotak.'^{+}} '.$kotak,
+            'lim_{'.$kotak.' \to '.$kotak.'^{−}} '.$kotak,
+            'lim_{'.$kotak.' \to 0} \frac{sin '.$kotak.'}{'.$kotak.'} = 1',
+            'lim_{'.$kotak.' \to 0} \frac{tan '.$kotak.'}{'.$kotak.'} = 1',
+            'lim_{h \to 0} \frac{f(x + h) − f(x)}{h}',
+            'lim_{'.$kotak.' \to \infty} \left(1 + \frac{1}{'.$kotak.'}\right)^{'.$kotak.'}',
+        ],
+
+        'Integral' => [
+            '\int '.$kotak.' d'.$kotak,
+            '\int_{'.$kotak.'}^{'.$kotak.'} '.$kotak.' d'.$kotak,
+            '\int '.$kotak.'^{'.$kotak.'} d'.$kotak.' = \frac{'.$kotak.'^{'.$kotak.'}}{'.$kotak.'} + C',
+            '\int \frac{1}{'.$kotak.'} d'.$kotak.' = ln |'.$kotak.'| + C',
+            '\int sin '.$kotak.' d'.$kotak.' = −cos '.$kotak.' + C',
+            '\int cos '.$kotak.' d'.$kotak.' = sin '.$kotak.' + C',
+            '\int_{'.$kotak.'}^{'.$kotak.'} f('.$kotak.') d'.$kotak.' = F('.$kotak.') − F('.$kotak.')',
+            'L = \int_{'.$kotak.'}^{'.$kotak.'} f('.$kotak.') d'.$kotak,
+            'V = π \int_{'.$kotak.'}^{'.$kotak.'} \left(f('.$kotak.')\right)^{2} d'.$kotak,
+        ],
+
+        'Diferensial' => [
             '\frac{d'.$kotak.'}{d'.$kotak.'}',
             '\frac{d}{d'.$kotak.'}\left('.$kotak.'\right)',
             'f\'('.$kotak.')',
-            '\int '.$kotak.' d'.$kotak,
-            '\int_{'.$kotak.'}^{'.$kotak.'} '.$kotak.' d'.$kotak,
-            '\sum_{'.$kotak.'}^{'.$kotak.'} '.$kotak,
+            'f\'\'('.$kotak.')',
+            'f\'('.$kotak.') = lim_{h \to 0} \frac{f('.$kotak.' + h) − f('.$kotak.')}{h}',
+            '\frac{d}{dx}\left(x^{'.$kotak.'}\right) = '.$kotak.' x^{'.$kotak.' − 1}',
+            '\frac{dy}{dx} = \frac{dy}{du} \cdot \frac{du}{dx}',
+            '(u \cdot v)\' = u\'v + uv\'',
+            '\left(\frac{u}{v}\right)\' = \frac{u\'v − uv\'}{v^{2}}',
             '\frac{\partial '.$kotak.'}{\partial '.$kotak.'}',
         ],
 
