@@ -2,21 +2,28 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\GantiKataSandi;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 /**
- * Data guru/PTK dibaca dari database "datacenter" (READ-ONLY) dan sekaligus
- * menjadi penyedia autentikasi guard "guru" (login memakai NIP + password
- * yang sudah tersimpan di datacenter).
+ * Data guru/PTK dibaca dari database "datacenter" dan sekaligus menjadi
+ * penyedia autentikasi guard "guru" (login memakai NIP + password yang sudah
+ * tersimpan di datacenter).
+ *
+ * Aplikasi ujian tidak menulis ke tabel ini kecuali satu hal: kolom password,
+ * bila gurunya sendiri menggantinya dari halaman profilnya — lihat trait
+ * GantiKataSandi.
  */
 class Guru extends Authenticatable
 {
+    use GantiKataSandi;
+
     protected $connection = 'datacenter';
 
     protected $table = 'guru';
 
-    /** Read-only dari sisi aplikasi ujian. */
+    /** Tidak ada kolom yang boleh di-mass assign dari aplikasi ini. */
     protected $fillable = [];
 
     protected $hidden = ['password', 'remember_token'];

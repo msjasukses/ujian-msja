@@ -13,12 +13,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
 /**
- * Menu "Profil Saya" di pojok kanan atas.
+ * Menu "Profil Saya" di pojok kanan atas, dan profil peserta di ruang ujian.
  *
  * Admin/operator tersimpan di database aplikasi sehingga nama, email, dan
- * kata sandinya bisa diubah di sini. Guru datang dari database Data Center
- * yang hanya bisa dibaca — datanya ditampilkan apa adanya, dan perubahannya
- * dilakukan di aplikasi Data Center.
+ * kata sandinya bisa diubah di sini. Identitas guru dan siswa datang dari
+ * database Data Center dan ditampilkan apa adanya — perubahannya dilakukan di
+ * aplikasi Data Center — tetapi kata sandinya boleh diganti sendiri dari
+ * halaman ini, karena hanya pemilik akun yang mengetahui yang lama.
  */
 class ProfilController extends Controller
 {
@@ -34,9 +35,10 @@ class ProfilController extends Controller
     }
 
     /**
-     * Profil peserta. Data siswa milik Data Center, jadi halaman ini hanya
-     * menampilkan — termasuk riwayat masuk, supaya siswa bisa mengenali bila
-     * akunnya dipakai orang lain.
+     * Profil peserta. Identitas siswa milik Data Center, jadi halaman ini
+     * hanya menampilkannya — termasuk riwayat masuk, supaya siswa bisa
+     * mengenali bila akunnya dipakai orang lain, lalu mengganti kata sandinya
+     * sendiri di situ juga.
      */
     public function siswa()
     {
@@ -63,32 +65,77 @@ class ProfilController extends Controller
         return redirect()->route('profil.index')->with('success', 'Profil diperbarui.');
     }
 
+    /** Kata sandi admin/operator maupun guru, sesuai siapa yang sedang masuk. */
     public function ubahSandi(Request $r)
     {
-        $user = $this->penggunaAplikasi();
+        $pengguna = Pengguna::user();
 
+        abort_unless($pengguna instanceof User || $pengguna instanceof Guru, 403);
+
+        return $this->gantiSandi($r, $pengguna, 'profil.index');
+    }
+
+    /** Kata sandi peserta, dari halaman profil di ruang ujian. */
+    public function ubahSandiSiswa(Request $r)
+    {
+        $siswa = Pengguna::siswa();
+
+        abort_unless($siswa instanceof Siswa, 403);
+
+        return $this->gantiSandi($r, $siswa, 'siswa.profil');
+    }
+
+    /**
+     * Ganti kata sandi akun yang sedang masuk, untuk ketiga guard.
+     *
+     * Kata sandi lama selalu diminta: itulah yang membedakan pemilik akun dari
+     * orang yang kebetulan menemukan perangkatnya belum terkunci.
+     */
+    protected function gantiSandi(Request $r, User|Guru|Siswa $pengguna, string $kembali)
+    {
+        // Pesannya ditulis sendiri, tidak memakai bawaan Laravel yang berbahasa
+        // Inggris: formulir ini dipakai siswa, bukan hanya pengelola aplikasi.
         $r->validate([
             'password_lama' => 'required|string',
-            'password' => ['required', 'confirmed', Password::min(8)],
-        ], [], [
+            'password' => ['required', 'confirmed', 'different:password_lama', Password::min(8)],
+        ], [
+            'password_lama.required' => 'Kata sandi saat ini wajib diisi.',
+            'password.required' => 'Kata sandi baru wajib diisi.',
+            'password.confirmed' => 'Ulangan kata sandi baru tidak sama.',
+            'password.different' => 'Kata sandi baru harus berbeda dari yang sekarang.',
+            'password.min' => 'Kata sandi baru minimal :min karakter.',
+        ], [
             'password_lama' => 'Kata sandi saat ini',
             'password' => 'Kata sandi baru',
         ]);
 
-        if (! Hash::check($r->password_lama, $user->password)) {
+        // Akun datacenter yang kolom password-nya masih kosong tidak bisa masuk
+        // sejak awal, jadi blank() di sini hanya menjaga Hash::check.
+        $cocok = $pengguna instanceof User
+            ? filled($pengguna->password) && Hash::check($r->password_lama, $pengguna->password)
+            : $pengguna->kataSandiCocok($r->password_lama);
+
+        if (! $cocok) {
             return back()->withErrors(['password_lama' => 'Kata sandi saat ini tidak cocok.']);
         }
 
-        $user->update(['password' => $r->password]);
+        // Admin/operator ada di database aplikasi ini; guru dan siswa di
+        // datacenter, tempat kata sandinya dibaca saat masuk.
+        if ($pengguna instanceof User) {
+            $pengguna->update(['password' => $r->password]);
+        } else {
+            $pengguna->gantiKataSandi($r->password);
+        }
 
         // Sesi yang sedang dipakai diperbarui supaya tidak ikut terlempar ke
-        // halaman login setelah kata sandinya berganti.
+        // halaman login setelah kata sandinya berganti. Isi sesi ikut pindah,
+        // jadi penanda satu-perangkat milik peserta tetap utuh.
         $r->session()->regenerate();
 
-        return redirect()->route('profil.index')->with('success', 'Kata sandi diperbarui.');
+        return redirect()->route($kembali)->with('success', 'Kata sandi diperbarui.');
     }
 
-    /** Hanya akun aplikasi (admin/operator) yang datanya bisa diubah di sini. */
+    /** Hanya akun aplikasi (admin/operator) yang identitasnya bisa diubah di sini. */
     protected function penggunaAplikasi(): User
     {
         $user = Auth::guard('web')->user();

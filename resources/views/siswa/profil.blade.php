@@ -33,10 +33,15 @@
             </div>
             <div class="card-body border-top py-2 small text-muted">
                 <i class="bi bi-info-circle me-1 text-primary"></i>
-                Identitas dan kata sandi berasal dari data sekolah. Bila ada yang keliru atau kata
-                sandi perlu diganti, hubungi wali kelas atau operator sekolah.
+                Identitas berasal dari data sekolah. Bila ada yang keliru,
+                hubungi wali kelas atau operator sekolah.
+                Kata sandi bisa Anda ganti sendiri di bawah — simpan baik-baik, karena hanya
+                operator sekolah yang bisa mengembalikannya bila lupa.
             </div>
         </div>
+
+        {{-- Kata sandi: ganti sendiri, dengan kata sandi lama sebagai buktinya. --}}
+        @include('partials.ubah-sandi', ['aksi' => 'siswa.profil.sandi'])
 
         <div class="card">
             <div class="card-header"><i class="bi bi-clock-history me-1"></i>Aktivitas Masuk Terakhir</div>

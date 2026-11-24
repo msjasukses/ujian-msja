@@ -60,45 +60,16 @@
                 </div>
                 <div class="card-body border-top py-2 small text-muted">
                     <i class="bi bi-info-circle me-1 text-primary"></i>
-                    Data dan kata sandi guru berasal dari aplikasi Data Center, jadi perubahannya
-                    dilakukan di sana — bukan di aplikasi ujian ini.
+                    Identitas guru berasal dari aplikasi Data Center, jadi perbaikannya dilakukan
+                    di sana — bukan di aplikasi ujian ini. Kata sandi bisa Anda ganti sendiri di
+                    bawah, dan berlaku untuk kedua aplikasi.
                 </div>
             @endif
         </div>
 
         {{-- ---------- Kata sandi ---------- --}}
-        @if ($bisaDiubah)
-            <div class="card mb-3">
-                <div class="card-header"><i class="bi bi-key me-1"></i>Ubah Kata Sandi</div>
-                <form method="POST" action="{{ route('profil.sandi') }}">
-                    @csrf @method('PUT')
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Kata sandi saat ini <span class="text-danger">*</span></label>
-                            <input type="password" name="password_lama"
-                                   class="form-control @error('password_lama') is-invalid @enderror" required>
-                            @error('password_lama')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Kata sandi baru <span class="text-danger">*</span></label>
-                            <input type="password" name="password"
-                                   class="form-control @error('password') is-invalid @enderror" required>
-                            @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            <div class="form-text">Minimal 8 karakter.</div>
-                        </div>
-
-                        <div class="mb-0">
-                            <label class="form-label">Ulangi kata sandi baru <span class="text-danger">*</span></label>
-                            <input type="password" name="password_confirmation" class="form-control" required>
-                        </div>
-                    </div>
-                    <div class="card-body border-top text-end py-2">
-                        <button class="btn btn-sm btn-primary"><i class="bi bi-shield-lock me-1"></i>Ubah kata sandi</button>
-                    </div>
-                </form>
-            </div>
-        @endif
+        {{-- Ketiga peran boleh mengganti kata sandinya sendiri, termasuk guru. --}}
+        @include('partials.ubah-sandi', ['aksi' => 'profil.sandi'])
 
         {{-- ---------- Riwayat masuk ---------- --}}
         <div class="card">

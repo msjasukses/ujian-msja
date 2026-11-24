@@ -2,24 +2,29 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\GantiKataSandi;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 /**
- * Data siswa dibaca dari database "datacenter" (READ-ONLY). Aplikasi ujian
- * tidak pernah menulis ke tabel ini — $fillable sengaja dikosongkan.
+ * Data siswa dibaca dari database "datacenter". Aplikasi ujian tidak menulis
+ * ke tabel ini — $fillable sengaja dikosongkan — kecuali satu hal: kolom
+ * password, bila pesertanya sendiri menggantinya dari halaman profilnya.
+ * Lihat trait GantiKataSandi.
  *
  * Model ini juga dipakai sebagai penyedia autentikasi guard "siswa":
  * peserta ujian login memakai NISN + password yang sudah ada di datacenter.
  */
 class Siswa extends Authenticatable
 {
+    use GantiKataSandi;
+
     protected $connection = 'datacenter';
 
     protected $table = 'siswa';
 
-    /** Read-only: tidak ada kolom yang boleh di-mass assign dari aplikasi ini. */
+    /** Tidak ada kolom yang boleh di-mass assign dari aplikasi ini. */
     protected $fillable = [];
 
     protected $hidden = ['password', 'remember_token'];

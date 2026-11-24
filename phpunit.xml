@@ -24,7 +24,10 @@
         <env name="CACHE_STORE" value="array"/>
         <!-- Database uji terpisah supaya data aplikasi tidak ikut terhapus.
              Koneksi "datacenter" & "kurikulum" tetap menunjuk database asli
-             karena keduanya read-only. -->
+             karena aplikasi ini hampir seluruhnya hanya membacanya. Satu-satunya
+             tulisan adalah kolom password guru/siswa saat pemiliknya mengganti
+             kata sandinya sendiri, jadi uji yang menyentuhnya wajib memulihkan
+             baris aslinya — lihat ProfilTest. -->
         <env name="DB_DATABASE" value="ujian_test"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

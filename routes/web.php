@@ -208,6 +208,7 @@ Route::middleware('pengelola')->group(function () {
 // ---------------------------------------------------------------------------
 Route::middleware('siswa')->prefix('siswa')->name('siswa.')->group(function () {
     Route::get('profil', [ProfilController::class, 'siswa'])->name('profil');
+    Route::put('profil/sandi', [ProfilController::class, 'ubahSandiSiswa'])->name('profil.sandi');
     Route::get('ujian', [UjianSiswaController::class, 'index'])->name('ujian.index');
     Route::get('ujian/{peserta}', [UjianSiswaController::class, 'konfirmasi'])->name('ujian.konfirmasi');
     Route::post('ujian/{peserta}/mulai', [UjianSiswaController::class, 'mulai'])->name('ujian.mulai');
