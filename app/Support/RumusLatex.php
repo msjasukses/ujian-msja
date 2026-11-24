@@ -160,8 +160,8 @@ final class RumusLatex
                 }
 
                 // \, \; \! \: mengatur jarak; \{ \} \$ adalah huruf biasa.
-                $berikut = $src[$i + 1] ?? '';
-                $i += 2;
+                $i++;
+                $berikut = $i < $batas ? self::huruf($src, $i, $batas) : '';
                 $keluar .= str_contains(',;:! ', $berikut) && $berikut !== '' ? ' ' : e($berikut);
 
                 continue;
@@ -190,11 +190,38 @@ final class RumusLatex
                 continue;
             }
 
-            $i++;
-            $keluar .= e($c);
+            $keluar .= e(self::huruf($src, $i, $batas));
         }
 
         return $keluar;
+    }
+
+    /**
+     * Ambil satu huruf utuh, termasuk yang memakan lebih dari satu bita.
+     *
+     * Penguraian ini berjalan bita demi bita, dan memang boleh begitu: seluruh
+     * penanda LaTeX — \ { } ^ _ — bertubuh satu bita, dan bita lanjutan sebuah
+     * huruf UTF-8 tidak pernah menyerupainya. Hurufnya sendiri lain perkara.
+     * π, °, √, dan huruf Arab memakan dua sampai empat bita; diambil sebita,
+     * potongannya bukan huruf yang sah dan e() menggantinya dengan tanda
+     * tanya. Lambang yang diketik langsung ke dalam rumus — bukan sebagai
+     * perintah \pi — karena itu dulu selalu hilang.
+     */
+    private static function huruf(string $src, int &$i, int $batas): string
+    {
+        $awal = $i;
+        $bita = ord($src[$i]);
+
+        $lebar = match (true) {
+            ($bita & 0xF8) === 0xF0 => 4,
+            ($bita & 0xF0) === 0xE0 => 3,
+            ($bita & 0xE0) === 0xC0 => 2,
+            default => 1,
+        };
+
+        $i = min($batas, $awal + $lebar);
+
+        return substr($src, $awal, $i - $awal);
     }
 
     /**
@@ -227,12 +254,12 @@ final class RumusLatex
                 return self::perintah($src, $i, $batas, $m[1]);
             }
 
-            $i += 2;
+            $i++;
 
-            return e($src[$i - 1] ?? '');
+            return $i < $batas ? e(self::huruf($src, $i, $batas)) : '';
         }
 
-        return e($src[$i++]);
+        return e(self::huruf($src, $i, $batas));
     }
 
     private static function perintah(string $src, int &$i, int $batas, string $nama): string

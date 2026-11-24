@@ -53,7 +53,7 @@ window.EditorSoal = (function () {
     const TAG_BOLEH = ['B','STRONG','I','EM','U','S','SUP','SUB','BR','SPAN','SMALL','MARK',
                        'CODE','P','DIV','UL','OL','LI','TABLE','THEAD','TBODY','TR','TD','TH','IMG'];
     const ATRIBUT_BOLEH = ['dir','lang','class','colspan','rowspan','src','alt'];
-    const KELAS_BOLEH = ['teks-arab','pecahan','pembilang','penyebut','akar','radikan'];
+    const KELAS_BOLEH = ['teks-arab','pecahan','pembilang','penyebut','akar','radikan','gambar-sebaris'];
 
     /*
      * Rentang tulisan Arab: huruf Arab dan turunannya, harakat, tatwil,
@@ -120,6 +120,7 @@ window.EditorSoal = (function () {
         if (kolom.classList.contains('is-invalid')) editor.classList.add('is-invalid');
 
         editor.innerHTML = keHtml(kolom.value, ! luas);
+        tataGambar(editor);
 
         kolom.insertAdjacentElement('afterend', editor);
         kolom.classList.add('d-none');
@@ -189,6 +190,7 @@ window.EditorSoal = (function () {
             document.execCommand('insertHTML', false, html
                 ? saring(html, ! luas)
                 : pagariArab(konversiLatexDalamTeks(teks)));
+            tataGambar(editor);
             sinkron(editor, kolom);
         });
 
@@ -197,11 +199,12 @@ window.EditorSoal = (function () {
         // Menatanya sambil diketik akan melemparkan kursor ke tempat lain pada
         // tiap huruf.
         editor.addEventListener('blur', function (e) {
-            // Tombol papan sisip merebut fokus sebentar saat ditekan. Menata
-            // ulang isi pada saat itu membuat posisi kursor yang disimpan
-            // menunjuk simpul yang sudah tidak ada, dan sisipan berikutnya
-            // mendarat di awal kolom.
-            if (e.relatedTarget?.closest('#papanSimbol')) return;
+            // Tombol papan sisip merebut fokus sebentar saat ditekan, dan
+            // papan rumus merebutnya selama modalnya terbuka. Menata ulang isi
+            // pada saat itu membuat posisi kursor yang disimpan menunjuk simpul
+            // yang sudah tidak ada, dan sisipan berikutnya mendarat di awal
+            // kolom.
+            if (e.relatedTarget?.closest('#papanSimbol, #papanRumus')) return;
 
             if (! bungkusArab(editor)) return;
 
@@ -239,6 +242,57 @@ window.EditorSoal = (function () {
 
         tujuan.value = alamatSimpan(isi);
         editor.classList.toggle('is-invalid', false);
+    }
+
+    /**
+     * Tinggi sebuah gambar yang masih masuk akal sebagai bagian dari kalimat.
+     *
+     * Rumus pada naskah Word kerap bukan huruf melainkan gambar: pecahan,
+     * akar, dan pangkat dibuat di penyunting persamaan lalu ikut tersalin
+     * sebagai potongan gambar kecil, setinggi satu sampai dua baris. Gambar
+     * soal yang sesungguhnya — grafik, denah, foto benda — jauh lebih tinggi
+     * dari itu.
+     */
+    const TINGGI_SEBARIS = 110;
+
+    /**
+     * Tentukan gambar mana yang berdiri sendiri dan mana yang bagian kalimat.
+     *
+     * Badan soal memperlakukan gambar sebagai blok: ia berdiri sendiri di
+     * antara dua baris tulisan, sebagaimana mestinya gambar soal. Rumus yang
+     * tersalin sebagai gambar ikut terkena aturan itu, dan satu kalimat soal
+     * pecah menjadi tiga baris — "Bentuk dari", pecahannya, lalu "dalam
+     * pangkat positif adalah". Yang kecil karena itu ditandai supaya tetap
+     * mengalir bersama tulisannya.
+     *
+     * Penandanya ikut tersimpan ke bank soal, bukan dihitung ulang di tiap
+     * halaman: lembar ujian siswa dan naskah cetak tidak mengukur gambar,
+     * mereka hanya membaca apa yang sudah tertulis.
+     */
+    function tataGambar(editor) {
+        if (!editor) return;
+
+        editor.querySelectorAll('img').forEach(function (img) {
+            if (img.complete && img.naturalHeight) {
+                tandaiGambar(img);
+
+                return;
+            }
+
+            // Gambar dari tempelan baru selesai dimuat beberapa saat
+            // kemudian; ukurannya belum diketahui pada saat ini.
+            img.addEventListener('load', function () {
+                tandaiGambar(img);
+                sinkron(editor);
+            }, { once: true });
+        });
+    }
+
+    function tandaiGambar(img) {
+        img.classList.toggle('gambar-sebaris', img.naturalHeight <= TINGGI_SEBARIS);
+
+        // Sisa atribut kosong tidak perlu ikut tersimpan.
+        if (img.className === '') img.removeAttribute('class');
     }
 
     /** Nilai tersimpan bisa berupa teks polos maupun HTML; keduanya diterima. */
@@ -723,6 +777,173 @@ window.EditorSoal = (function () {
     }
 
     // ------------------------------------------------------------------
+    // Jalan pulang: penanda tampil kembali menjadi LaTeX
+    // ------------------------------------------------------------------
+
+    /*
+     * Rumus disimpan sebagai penanda tampil, bukan sebagai LaTeX — itulah yang
+     * membuatnya bisa dibaca di lembar ujian, naskah cetak, dan berkas analisis
+     * tanpa penampil khusus. Harganya: rumus yang sudah tersisip tidak lagi
+     * punya kode asalnya. Guru yang salah mengetik penyebut karena itu harus
+     * membongkar sendiri susunannya di dalam kolom, bagian demi bagian.
+     *
+     * Penguraian balik di bawah mengembalikan bentuk LaTeX-nya, sehingga rumus
+     * yang terlanjur tersimpan bisa dibuka lagi di papan rumus seperti saat
+     * pertama disusun. Cakupannya sama persis dengan dariLatex di atas —
+     * pecahan, akar, pangkat, indeks — sehingga sekali putaran selalu kembali
+     * ke bentuk semula.
+     */
+
+    /** Huruf yang di LaTeX punya arti sendiri, jadi perlu dilindungi. */
+    const POLA_LINDUNG = /[\\{}^_$%&#~]/g;
+
+    function lindungi(teks) {
+        return (teks || '').replace(POLA_LINDUNG, '\\$&');
+    }
+
+    /** Ubah satu simpul penanda tampil menjadi LaTeX. */
+    function keLatex(simpul) {
+        if (simpul.nodeType === 3) return lindungi(simpul.textContent);
+        if (simpul.nodeType !== 1) return '';
+
+        if (simpul.classList.contains('pecahan')) {
+            const atas = simpul.querySelector(':scope > .pembilang');
+            const bawah = simpul.querySelector(':scope > .penyebut');
+
+            return '\\frac{' + (atas ? isiKeLatex(atas) : '')
+                 + '}{' + (bawah ? isiKeLatex(bawah) : '') + '}';
+        }
+
+        if (simpul.classList.contains('akar')) {
+            const radikan = simpul.querySelector(':scope > .radikan');
+
+            return '\\sqrt{' + (radikan ? isiKeLatex(radikan) : isiKeLatex(simpul)) + '}';
+        }
+
+        if (simpul.tagName === 'SUP') return '^{' + isiKeLatex(simpul) + '}';
+        if (simpul.tagName === 'SUB') return '_{' + isiKeLatex(simpul) + '}';
+        if (simpul.tagName === 'BR') return ' ';
+
+        return isiKeLatex(simpul);
+    }
+
+    /** Ubah isi sebuah elemen menjadi LaTeX, anak demi anak. */
+    function isiKeLatex(el) {
+        const anak = [...el.childNodes];
+        let keluar = '';
+
+        for (let i = 0; i < anak.length; i++) {
+            const kini = anak[i];
+            const lanjut = anak[i + 1];
+
+            // Akar berderajat tersimpan sebagai <sup>3</sup> tepat sebelum
+            // akarnya — bentuk yang sama yang dihasilkan \sqrt[3]{27}. Tanpa
+            // dikenali di sini, kodenya kembali sebagai "^{3}\sqrt{27}": tampil
+            // sama persis, tetapi tidak lagi terbaca sebagai akar pangkat tiga
+            // oleh guru yang membuka kodenya.
+            if (kini.nodeType === 1 && kini.tagName === 'SUP'
+                && lanjut?.nodeType === 1 && lanjut.classList?.contains('akar')) {
+                const radikan = lanjut.querySelector(':scope > .radikan');
+
+                keluar += '\\sqrt[' + isiKeLatex(kini) + ']{'
+                        + (radikan ? isiKeLatex(radikan) : '') + '}';
+                i++;
+
+                continue;
+            }
+
+            keluar += keLatex(kini);
+        }
+
+        return keluar;
+    }
+
+    /**
+     * Rumus terluar yang memuat sebuah titik di dalam editor.
+     *
+     * Yang dicari yang terluar, bukan yang terdekat: pada pecahan yang
+     * pembilangnya pecahan lagi, mengklik angka di dalamnya harus membuka
+     * seluruh rumusnya — bukan potongan yang tidak berdiri sendiri.
+     */
+    function rumusTerdekat(sasaran) {
+        const mulai = sasaran?.nodeType === 3 ? sasaran.parentElement : sasaran;
+        const editor = mulai?.closest?.('[data-editor-untuk]');
+
+        if (!editor) return null;
+
+        let rumus = null;
+        let simpul = mulai;
+
+        while (simpul && simpul !== editor) {
+            if (simpul.matches?.('.pecahan, .akar, sup, sub')) rumus = simpul;
+            simpul = simpul.parentElement;
+        }
+
+        // Derajat akar berdiri sebagai simpul tersendiri di depan akarnya;
+        // mengklik angka tiga pada ∛27 berarti menyunting akarnya, bukan
+        // sebuah pangkat yang kebetulan ada di sebelahnya.
+        if (rumus?.tagName === 'SUP' && derajatAkar(rumus.nextSibling)) {
+            rumus = rumus.nextSibling;
+        }
+
+        return rumus;
+    }
+
+    /** Benarkah simpul ini sebuah akar yang didahului derajatnya? */
+    function derajatAkar(simpul) {
+        return simpul?.nodeType === 1 && simpul.classList.contains('akar');
+    }
+
+    /** Tandai sebuah rumus seutuhnya, sehingga sisipan berikutnya menggantinya. */
+    function pilihRumus(el) {
+        const editor = el?.closest?.('[data-editor-untuk]');
+
+        if (!editor) return false;
+
+        editorAktif = editor;
+        editor.focus();
+
+        const rentang = document.createRange();
+        rentang.selectNode(el);
+
+        // Akar berderajat ditandai berikut derajatnya. Tanpa itu, mengganti
+        // ∛27 dengan rumus lain akan meninggalkan angka tiga kecilnya
+        // menggantung sendirian di tengah kalimat.
+        const sebelum = el.previousSibling;
+
+        if (el.classList?.contains('akar') && sebelum?.nodeType === 1 && sebelum.tagName === 'SUP') {
+            rentang.setStartBefore(sebelum);
+        }
+
+        const sel = document.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(rentang);
+        simpanRentang();
+
+        return true;
+    }
+
+    /** LaTeX dari bagian yang sedang ditandai; kosong bila tidak ada. */
+    function latexTerpilih() {
+        if (!aktif()) return '';
+
+        const sel = document.getSelection();
+
+        if (!sel || !sel.rangeCount) return '';
+
+        const rentang = sel.getRangeAt(0);
+
+        if (rentang.collapsed || !editorAktif.contains(rentang.commonAncestorContainer)) {
+            return '';
+        }
+
+        const wadah = document.createElement('div');
+        wadah.appendChild(rentang.cloneContents());
+
+        return isiKeLatex(wadah).trim();
+    }
+
+    // ------------------------------------------------------------------
     // Penyaringan tempelan
     // ------------------------------------------------------------------
 
@@ -1054,15 +1275,70 @@ window.EditorSoal = (function () {
         simpanRentang();
     }
 
+    /**
+     * Sisipan yang memuat susunan bertingkat tidak bisa dititipkan ke
+     * insertHTML.
+     *
+     * Perintah bawaan peramban menata ulang sisipan yang memuat elemen
+     * berisi bertumpuk. Bila kursor berada di tengah kalimat, kalimatnya
+     * harus dibelah lebih dulu, dan pada saat itu Chrome membongkar
+     * <span class="pecahan">: pembilangnya tetap terbungkus, penyebutnya
+     * terlempar keluar menjadi <span> bergaya sebaris — "21 7" berdampingan,
+     * bukan lagi pecahan. Pecahan yang disisipkan di ujung kalimat lolos dari
+     * penataan itu; yang di tengah tidak. Itulah sebabnya kerusakannya jarang
+     * tertangkap.
+     *
+     * Akar, pangkat, dan indeks isinya tetap sebaris, jadi tidak terkena.
+     */
+    const POLA_BERTINGKAT = /class\s*=\s*["'][^"']*\bpecahan\b/i;
+
     function sisipHtml(html) {
         if (!aktif()) return false;
 
         pulihkanRentang();
-        document.execCommand('insertHTML', false, html);
+
+        if (POLA_BERTINGKAT.test(html)) {
+            pasangSimpul(html);
+        } else {
+            document.execCommand('insertHTML', false, html);
+        }
+
+        tataGambar(editorAktif);
         simpanRentang();
         sinkron(editorAktif);
 
         return true;
+    }
+
+    /**
+     * Pasang sepotong HTML tepat pada posisi kursor, apa adanya.
+     *
+     * Bagian yang sedang ditandai digantikan, sama seperti yang dilakukan
+     * insertHTML — hanya saja tidak ada penataan ulang sesudahnya.
+     */
+    function pasangSimpul(html) {
+        const sel = document.getSelection();
+
+        if (!sel || !sel.rangeCount) return;
+
+        const rentang = sel.getRangeAt(0);
+        rentang.deleteContents();
+
+        const potongan = rentang.createContextualFragment(html);
+        const ujung = potongan.lastChild;
+
+        rentang.insertNode(potongan);
+
+        if (!ujung) return;
+
+        // Kursor ditaruh sesudah sisipan, supaya ketikan berikutnya
+        // melanjutkan kalimatnya dan bukan menimpa yang baru dipasang.
+        const sesudah = document.createRange();
+        sesudah.setStartAfter(ujung);
+        sesudah.collapse(true);
+
+        sel.removeAllRanges();
+        sel.addRange(sesudah);
     }
 
     function sisipTeks(teks) {
@@ -1087,6 +1363,7 @@ window.EditorSoal = (function () {
 
         if (editor?.classList.contains('editor-kaya')) {
             editor.innerHTML = keHtml(kolom.value, kolom.tagName !== 'TEXTAREA');
+            tataGambar(editor);
         }
 
         return true;
@@ -1244,7 +1521,7 @@ window.EditorSoal = (function () {
 
     return { pasang, pasangSemua, pasangUlang: pasangSemua, aktif, fokuskan,
              sisipHtml, sisipTeks, setel, bungkus, perintah, sisipDenganKursor,
-             ubahLatexTerpilih };
+             ubahLatexTerpilih, dariLatex, rumusTerdekat, pilihRumus, latexTerpilih };
 })();
 </script>
 @endpush

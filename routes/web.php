@@ -6,6 +6,7 @@ use App\Http\Controllers\CadanganController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportSoalController;
 use App\Http\Controllers\KartuPesertaController;
+use App\Http\Controllers\KinerjaController;
 use App\Http\Controllers\Laporan\AnalisisButirController;
 use App\Http\Controllers\Laporan\NilaiController;
 use App\Http\Controllers\Laporan\PengayaanController;
@@ -183,6 +184,14 @@ Route::middleware('pengelola')->group(function () {
 
         Route::get('pengaturan', [PengaturanController::class, 'index'])->name('pengaturan.index');
         Route::put('pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
+
+        // Kinerja & cache — dibatasi lagi ke peran admin di controllernya.
+        Route::get('kinerja', [KinerjaController::class, 'index'])->name('kinerja.index');
+        // Keduanya POST, bukan PUT: halaman ini satu formulir dengan dua tombol
+        // (uji dan simpan), dan formaction tidak bisa ikut mengganti metode
+        // yang sudah disamarkan _method.
+        Route::post('kinerja/uji', [KinerjaController::class, 'uji'])->name('kinerja.uji');
+        Route::post('kinerja', [KinerjaController::class, 'simpan'])->name('kinerja.simpan');
 
         // Cadangan & pemulihan — dibatasi lagi ke peran admin di controllernya.
         Route::get('cadangan', [CadanganController::class, 'index'])->name('cadangan.index');

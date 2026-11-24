@@ -79,6 +79,20 @@ class TeksSoalTest extends TestCase
         $this->assertStringContainsString('class="radikan"', $hasil);
     }
 
+    /**
+     * Rumus yang tersalin dari Word berupa gambar sebaris, bukan huruf.
+     * Penandanya dipasang di kolom soal dan harus sampai ke lembar ujian:
+     * tanpa itu tiap rumus berdiri sebagai blok dan kalimat soal terpotong.
+     */
+    public function test_penanda_gambar_sebaris_dipertahankan(): void
+    {
+        $gambar = '<img src="/storage/soal/rumus.png" class="gambar-sebaris" alt="rumus">';
+
+        $hasil = TeksSoal::html("Bentuk dari {$gambar} dalam pangkat positif adalah ...")->toHtml();
+
+        $this->assertStringContainsString('class="gambar-sebaris"', $hasil);
+    }
+
     public function test_tabel_sederhana_dipertahankan(): void
     {
         $hasil = TeksSoal::html('<table><tr><td colspan="2">x</td><td>y</td></tr></table>')->toHtml();

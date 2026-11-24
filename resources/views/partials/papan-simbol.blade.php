@@ -9,9 +9,20 @@
     membuat formulir penuh sesak.
 --}}
 <div class="card mb-3" id="papanSimbol">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
         <span><i class="bi bi-keyboard me-1"></i>Sisipkan Simbol &amp; Huruf Arab</span>
-        <span class="small text-muted" id="sasaranSisip">klik kolom teks lebih dulu</span>
+
+        <span class="d-flex align-items-center gap-2">
+            <span class="small text-muted" id="sasaranSisip">klik kolom teks lebih dulu</span>
+
+            {{-- Rumus bertingkat dirakit di papannya sendiri; lihat
+                 partials/papan-rumus.blade.php. Tombolnya ditaruh di kepala
+                 kartu, bukan di dalam salah satu tab, supaya tetap terjangkau
+                 apa pun tab yang sedang terbuka. --}}
+            <button type="button" class="btn btn-sm btn-primary" id="tombolRumus">
+                <i class="bi bi-calculator me-1"></i>Papan rumus
+            </button>
+        </span>
     </div>
 
     <div class="card-body py-2">
@@ -128,7 +139,9 @@
                         <kbd>Tab</kbd> untuk berpindah ke bagian berikutnya lalu keluar.
                         Rumus LaTeX seperti <code>\frac{1}{2}</code> yang terlanjur tertempel
                         sebagai tulisan bisa ditandai lalu diubah lewat tombol
-                        <strong>Ubah LaTeX terpilih</strong>.
+                        <strong>Ubah LaTeX terpilih</strong>. Rumus yang lebih panjang —
+                        pecahan di dalam akar, pangkat berindeks, notasi ilmiah — lebih mudah
+                        dirakit lewat <strong>Papan rumus</strong> di kepala kartu ini.
                     </div>
                 </div>
                 <div class="d-flex flex-wrap gap-1 mb-3">
@@ -179,6 +192,8 @@
         </div>
     </div>
 </div>
+
+@include('partials.papan-rumus')
 
 @push('scripts')
 <script>
@@ -255,6 +270,18 @@
             tombol.addEventListener('mousedown', e => e.preventDefault());
             tombol.addEventListener('click', function () {
                 jalankan(() => window.EditorSoal.perintah(tombol.dataset.perintah));
+            });
+        });
+
+        // Papan rumus. Fokus ditahan supaya kolom yang sedang disunting tetap
+        // tercatat sebagai sasaran — modalnya baru merebut fokus sesudahnya,
+        // dan itu sudah dikecualikan di editor-kaya.
+        document.getElementById('tombolRumus')?.addEventListener('mousedown', e => e.preventDefault());
+        document.getElementById('tombolRumus')?.addEventListener('click', function () {
+            jalankan(function () {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('papanRumus')).show();
+
+                return true;
             });
         });
 

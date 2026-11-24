@@ -81,6 +81,26 @@ class RumusLatexTest extends TestCase
                 'Satuan \(5 \text{ cm}\) saja.',
                 'Satuan 5 cm saja.',
             ],
+
+            /*
+             * Lambang yang diketik langsung sebagai hurufnya, bukan sebagai
+             * perintah. Begitulah bentuk yang datang dari papan rumus dan dari
+             * naskah yang disalin dari Word: di sana π sudah berupa π. Huruf
+             * seperti itu memakan lebih dari satu bita, dan pengurai ini
+             * berjalan bita demi bita.
+             */
+            'lambang diketik langsung' => [
+                'Keliling \(2 × π × r\) meter.',
+                'Keliling 2 × π × r meter.',
+            ],
+            'lambang di dalam susunan' => [
+                'Hitung \(\frac{π}{2} + \sqrt{π} + x^{°}\).',
+                'Hitung '.$pecahan('π', '2').' + '.$akar('π').' + x<sup>°</sup>.',
+            ],
+            'teks arab di dalam rumus' => [
+                'Nilai \(\text{س} = 5\) itu.',
+                'Nilai س = 5 itu.',
+            ],
         ];
     }
 

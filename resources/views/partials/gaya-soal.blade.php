@@ -79,6 +79,27 @@
     .soal-body img { display: block; margin: .6rem 0; }
     .opsi-teks img { display: inline-block; vertical-align: middle; max-height: 9rem; margin: .2rem 0; }
 
+    /*
+        Rumus pada naskah Word kerap bukan huruf melainkan gambar: pecahan,
+        akar, dan pangkat dibuat di penyunting persamaan lalu ikut tersalin
+        sebagai potongan gambar setinggi satu-dua baris. Diperlakukan sebagai
+        blok seperti gambar soal lainnya, tiap rumus melompat ke barisnya
+        sendiri dan satu kalimat pecah menjadi tiga baris: "Bentuk dari",
+        pecahannya, lalu "dalam pangkat positif adalah".
+
+        Gambar sekecil itu karena itu ditandai saat masuk ke kolom soal, lalu
+        dikembalikan mengalir bersama tulisannya — tanpa bingkai, karena yang
+        digambar sebenarnya tulisan juga. Lihat partials/editor-kaya.blade.php.
+    */
+    .soal-body img.gambar-sebaris,
+    .opsi-teks img.gambar-sebaris {
+        display: inline-block;
+        vertical-align: middle;
+        margin: 0 .15em;
+        border: 0;
+        border-radius: 0;
+    }
+
     /* ---------- Tabel dalam soal ---------- */
     /*
         Tabel pada soal hampir selalu datang dari tempelan Word, Excel, atau

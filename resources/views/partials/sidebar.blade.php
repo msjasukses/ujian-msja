@@ -125,6 +125,9 @@
                 <i class="bi bi-gear me-2"></i>Pengaturan
             </a>
             @if (Pengguna::user()?->isAdmin())
+                <a class="nav-link px-3 py-2 {{ request()->routeIs('kinerja.*') ? 'active' : '' }}" href="{{ route('kinerja.index') }}">
+                    <i class="bi bi-speedometer2 me-2"></i>Kinerja &amp; Cache
+                </a>
                 <a class="nav-link px-3 py-2 {{ request()->routeIs('cadangan.*') ? 'active' : '' }}" href="{{ route('cadangan.index') }}">
                     <i class="bi bi-database-down me-2"></i>Cadangan &amp; Pemulihan
                 </a>

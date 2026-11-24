@@ -41,6 +41,7 @@ final class TeksSoal
      */
     public const KELAS = [
         'teks-arab', 'pecahan', 'pembilang', 'penyebut', 'akar', 'radikan',
+        'gambar-sebaris',
         'text-center', 'text-end', 'table', 'table-bordered', 'table-sm',
     ];
 
