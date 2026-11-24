@@ -274,7 +274,10 @@
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" name="acak_opsi" value="1" id="acak_opsi"
                                @checked(old('acak_opsi', $item->acak_opsi))>
-                        <label class="form-check-label" for="acak_opsi">Acak urutan opsi jawaban</label>
+                        <label class="form-check-label" for="acak_opsi">Acak isi opsi jawaban</label>
+                    </div>
+                    <div class="form-text mb-2">
+                        Yang berpindah tempat hanya isi opsinya; abjadnya tetap urut A, B, C, D.
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="tampilkan_hasil" value="1" id="tampilkan_hasil"

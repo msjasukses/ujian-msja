@@ -145,6 +145,12 @@ class PengerjaanUjianService
      * Urutan tampil opsi setelah diacak. Untuk penjodohan yang diacak adalah
      * kolom kanan saja — kolom kiri tetap urut supaya pernyataan mudah dibaca.
      *
+     * Yang disimpan adalah huruf asli opsi menurut posisi tampilnya. Huruf
+     * yang dibaca peserta sendiri tetap urut a, b, c, d karena diambil dari
+     * posisi barisnya saat ditampilkan — lihat UjianJawaban::opsiTampil().
+     * Jadi pengacakan memindahkan isi opsinya, bukan abjadnya, dan kunci tetap
+     * menempel pada huruf asli sehingga koreksi tidak ikut berubah.
+     *
      * @return array<int, string>|null
      */
     protected function acakOpsi(?Soal $soal): ?array

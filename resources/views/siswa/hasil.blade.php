@@ -116,21 +116,28 @@
                                 <table class="table table-sm mb-0">
                                     <thead><tr><th>Pernyataan</th><th>Jawaban Anda</th><th>Kunci</th></tr></thead>
                                     <tbody>
-                                        @foreach ($soal->opsiPilihan() as $kiri)
+                                        @php
+                                            // Pada penjodohan, huruf pasangan yang dibaca siswa adalah
+                                            // huruf tampil ('label'), bukan huruf asli opsi — di sini
+                                            // dipetakan kembali supaya hasil memakai huruf yang sama.
+                                            $hurufKanan = collect($j->opsiTampil('kanan'))->pluck('label', 'key')->all();
+                                            $huruf = fn ($v) => $v === null || $v === '' ? null : ucfirst((string) ($hurufKanan[$v] ?? $v));
+                                        @endphp
+                                        @foreach ($j->opsiTampil() as $kiri)
                                             @php
                                                 $siswa = ((array) $j->jawaban)[$kiri['key']] ?? null;
                                                 $benar = $soal->kunci[$kiri['key']] ?? null;
                                             @endphp
                                             <tr class="{{ $siswa === $benar ? 'table-success' : ($siswa ? 'table-danger' : '') }}">
-                                                <td class="small">{{ $kiri['key'] }}. <span class="opsi-teks" dir="auto">{!! TeksSoal::html($kiri['text']) !!}</span></td>
-                                                <td class="small">{{ $siswa ? ucfirst($siswa) : '—' }}</td>
-                                                <td class="small fw-semibold">{{ ucfirst((string) $benar) }}</td>
+                                                <td class="small">{{ $kiri['label'] }}. <span class="opsi-teks" dir="auto">{!! TeksSoal::html($kiri['text']) !!}</span></td>
+                                                <td class="small">{{ $huruf($siswa) ?? '—' }}</td>
+                                                <td class="small fw-semibold">{{ $huruf($benar) }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
                             @else
-                                @foreach ($soal->opsiPilihan() as $o)
+                                @foreach ($j->opsiTampil() as $o)
                                     @php
                                         $key = (string) $o['key'];
                                         $dipilih = in_array($key, $terpilih, true);
@@ -138,7 +145,7 @@
                                     @endphp
                                     <div class="d-flex gap-2 align-items-start border rounded p-2 mb-1
                                                 {{ $adalahKunci ? 'border-success bg-success-subtle' : ($dipilih ? 'border-danger bg-danger-subtle' : '') }}">
-                                        <strong style="min-width:1.75rem">{{ strtoupper($key) }}.</strong>
+                                        <strong style="min-width:1.75rem">{{ strtoupper($o['label']) }}.</strong>
                                         <span class="flex-grow-1"><span class="opsi-teks" dir="auto">{!! TeksSoal::html($o['text']) !!}</span></span>
                                         @if ($dipilih)
                                             <span class="badge {{ $adalahKunci ? 'text-bg-success' : 'text-bg-danger' }}">jawaban Anda</span>

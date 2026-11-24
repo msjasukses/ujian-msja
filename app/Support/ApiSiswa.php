@@ -159,6 +159,10 @@ final class ApiSiswa
      * Butir pada halaman hasil: ditambah kunci dan pembahasan bila guru
      * mengizinkannya, dan tanpa keduanya bila tidak.
      *
+     * Kunci memakai huruf asli opsi ('key'), sama seperti isi 'jawaban'.
+     * Jadi keduanya bisa langsung dibandingkan; huruf yang ditampilkan ke
+     * siswa dicari dari 'label' pada daftar 'opsi'/'opsi_kanan'.
+     *
      * @return array<string, mixed>
      */
     public static function butirHasil(UjianJawaban $j, bool $bolehPembahasan): array
@@ -183,35 +187,22 @@ final class ApiSiswa
     /**
      * Opsi satu butir menurut urutan tampil yang berlaku bagi peserta ini.
      *
-     * @return array<int, array{key: string, text: string}>
+     * Pada butir yang diacak, yang berpindah tempat hanya isi opsinya:
+     *  - label : huruf yang harus ditampilkan aplikasi, selalu urut a, b, c, d;
+     *  - key   : huruf asli opsi, yaitu nilai yang dikirim kembali saat
+     *            menyimpan jawaban dan yang dicocokkan dengan kunci.
+     * Aplikasi menampilkan 'label' dan mengirim 'key'.
+     *
+     * @return array<int, array{key: string, label: string, text: string}>
      */
     private static function opsi(UjianJawaban $j, string $sisi): array
     {
-        $soal = $j->soal;
-
-        if (! $soal) {
-            return [];
-        }
-
-        $penjodohan = $soal->jenis === Soal::PENJODOHAN;
-
-        if ($sisi === 'kanan') {
-            $daftar = $penjodohan ? $soal->opsiKanan() : [];
-            $diacak = $penjodohan;
-        } else {
-            $daftar = $soal->opsiPilihan();
-            $diacak = in_array($soal->jenis, [Soal::PG, Soal::PG_KOMPLEKS, Soal::BENAR_SALAH_KOMPLEKS], true);
-        }
-
-        $daftar = collect($daftar);
-
-        if ($diacak && $j->urutan_opsi) {
-            $peta = $daftar->keyBy('key');
-            $daftar = collect($j->urutan_opsi)->map(fn ($k) => $peta[$k] ?? null)->filter();
-        }
-
-        return $daftar->values()
-            ->map(fn ($o) => ['key' => (string) $o['key'], 'text' => self::html($o['text'] ?? '')])
+        return collect($j->opsiTampil($sisi))
+            ->map(fn ($o) => [
+                'key' => $o['key'],
+                'label' => $o['label'],
+                'text' => self::html($o['text']),
+            ])
             ->all();
     }
 }

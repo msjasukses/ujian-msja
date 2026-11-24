@@ -46,18 +46,12 @@
         @foreach ($jawaban as $i => $j)
             @php
                 $soal = $j->soal;
-                // Urutan opsi dikunci saat peserta memulai; bila ada, opsi
+                // Urutan opsi dikunci saat peserta memulai; bila ada, isi opsi
                 // ditampilkan menurut urutan itu agar konsisten tiap refresh.
-                $opsi = collect($soal->opsiPilihan());
-                if ($j->urutan_opsi && in_array($soal->jenis, [Soal::PG, Soal::PG_KOMPLEKS, Soal::BENAR_SALAH_KOMPLEKS], true)) {
-                    $peta = $opsi->keyBy('key');
-                    $opsi = collect($j->urutan_opsi)->map(fn ($k) => $peta[$k] ?? null)->filter()->values();
-                }
-                $kanan = collect($soal->opsiKanan());
-                if ($j->urutan_opsi && $soal->jenis === Soal::PENJODOHAN) {
-                    $petaKanan = $kanan->keyBy('key');
-                    $kanan = collect($j->urutan_opsi)->map(fn ($k) => $petaKanan[$k] ?? null)->filter()->values();
-                }
+                // Abjad di kolom huruf memakai 'label' yang selalu urut
+                // a, b, c, d; nilai yang dikirim tetap 'key' asli opsi.
+                $opsi = collect($j->opsiTampil('kiri'));
+                $kanan = collect($j->opsiTampil('kanan'));
                 $terpilih = array_map('strval', (array) ($j->jawaban ?? []));
             @endphp
 
@@ -100,7 +94,7 @@
                                            name="soal-{{ $soal->id }}" value="{{ $o['key'] }}"
                                            data-soal="{{ $soal->id }}" data-mode="tunggal"
                                            @checked(in_array((string) $o['key'], $terpilih, true))>
-                                    <span class="opsi-huruf">{{ strtoupper($o['key']) }}</span>
+                                    <span class="opsi-huruf">{{ strtoupper($o['label']) }}</span>
                                     <span class="opsi-teks flex-grow-1" dir="auto">{!! TeksSoal::html($o['text']) !!}</span>
                                 </label>
                             @endforeach
@@ -134,7 +128,7 @@
 
                             @foreach ($opsi as $p)
                                 <div class="baris-pernyataan d-flex flex-wrap gap-2 align-items-center mb-2">
-                                    <span class="opsi-huruf">{{ $p['key'] }}</span>
+                                    <span class="opsi-huruf">{{ $p['label'] }}</span>
                                     <span class="flex-grow-1 opsi-teks" dir="auto" style="min-width:8rem">{!! TeksSoal::html($p['text']) !!}</span>
 
                                     <div class="d-flex gap-2 flex-shrink-0">
@@ -163,7 +157,7 @@
                                            name="soal-{{ $soal->id }}[]" value="{{ $o['key'] }}"
                                            data-soal="{{ $soal->id }}" data-mode="ganda"
                                            @checked(in_array((string) $o['key'], $terpilih, true))>
-                                    <span class="opsi-huruf">{{ strtoupper($o['key']) }}</span>
+                                    <span class="opsi-huruf">{{ strtoupper($o['label']) }}</span>
                                     <span class="opsi-teks flex-grow-1" dir="auto">{!! TeksSoal::html($o['text']) !!}</span>
                                 </label>
                             @endforeach
@@ -177,10 +171,10 @@
 
                             <div class="row g-3">
                                 <div class="col-md-7">
-                                    @foreach ($soal->opsiPilihan() as $kiri)
+                                    @foreach ($opsi as $kiri)
                                         @php $nilaiTerpilih = (array) ($j->jawaban ?? []); @endphp
                                         <div class="baris-jodoh d-flex gap-2 align-items-center mb-2">
-                                            <span class="opsi-huruf">{{ $kiri['key'] }}</span>
+                                            <span class="opsi-huruf">{{ $kiri['label'] }}</span>
                                             <span class="flex-grow-1 opsi-teks" dir="auto">{!! TeksSoal::html($kiri['text']) !!}</span>
                                             <select class="form-select form-select-sm jodoh-pilih" style="width:4.75rem"
                                                     data-soal="{{ $soal->id }}" data-kiri="{{ $kiri['key'] }}">
@@ -188,7 +182,7 @@
                                                 @foreach ($kanan as $kn)
                                                     <option value="{{ $kn['key'] }}"
                                                             @selected(($nilaiTerpilih[$kiri['key']] ?? null) === $kn['key'])>
-                                                        {{ $kn['key'] }}
+                                                        {{ $kn['label'] }}
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -201,7 +195,7 @@
                                         <div class="judul">Pilihan pasangan</div>
                                         @foreach ($kanan as $kn)
                                             <div class="d-flex gap-2 align-items-start mb-2">
-                                                <span class="opsi-huruf">{{ $kn['key'] }}</span>
+                                                <span class="opsi-huruf">{{ $kn['label'] }}</span>
                                                 <span class="opsi-teks" dir="auto">{!! TeksSoal::html($kn['text']) !!}</span>
                                             </div>
                                         @endforeach
