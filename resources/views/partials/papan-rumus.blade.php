@@ -9,20 +9,21 @@
     sekali lagi untuk keluar — sambil berharap kursornya tidak terperangkap.
 
     Di sini rumusnya dirakit terpisah dari badan soal: ada ruang tersendiri
-    untuk mencoba, menghapus, dan menata ulang, dengan hasil jadinya terlihat
-    sambil disusun. Baru setelah benar ia disisipkan ke kolom yang sedang
-    disunting.
+    untuk mencoba, menghapus, dan menata ulang. Ruang itu sendirilah yang
+    diketik — bukan kolom kode yang hasilnya ditampilkan di tempat lain.
+    Angka diketik langsung dari papan ketik, susunannya dipasang dari tombol,
+    dan yang terlihat sepanjang penyusunan persis yang akan dibaca siswa.
 
-    Bentuk simpanannya tetap penanda yang sama seperti yang ditulis tangan
-    lewat papan sisip — span.pecahan, span.akar, sup — bukan LaTeX, bukan
-    gambar. Dengan begitu rumus dari papan ini tampil di lembar ujian siswa,
-    naskah cetak, dan berkas analisis tanpa perlu apa pun yang baru di sisi
-    penampil, dan masih bisa disunting tangan sesudahnya.
+    Bentuk simpanannya penanda yang sama seperti yang ditulis tangan lewat
+    papan sisip — span.pecahan, span.akar, sup — bukan LaTeX, bukan gambar.
+    Dengan begitu rumus dari papan ini tampil di lembar ujian siswa, naskah
+    cetak, dan berkas analisis tanpa perlu apa pun yang baru di sisi penampil,
+    dan masih bisa disunting tangan sesudahnya.
 
-    LaTeX dipakai semata sebagai bahasa perantara saat merakit, karena itulah
-    bentuk yang sudah dikenali App\Support\RumusLatex di sisi server dan
-    EditorSoal.dariLatex di sisi peramban. Guru tidak harus menulisnya: kolom
-    kodenya boleh diabaikan sama sekali dan seluruh rumus dirakit lewat tombol.
+    LaTeX tetap dipakai, tetapi hanya di balik layar: tombol menyimpan
+    bentuknya sebagai LaTeX lalu menguraikannya lewat EditorSoal.dariLatex
+    sebelum dipasang, dan rumus yang terlanjur tertulis sebagai kode mentah
+    dikenali lewat jalan yang sama saat ditempel atau ditandai.
 --}}
 @php
     use App\Support\RumusLatex;
@@ -30,7 +31,7 @@
     /*
      * Penampung bagian rumus yang belum diisi. Dipilih berupa huruf tampak —
      * bukan penanda tersembunyi — supaya guru melihat sendiri bagian mana yang
-     * masih kosong, baik pada kolom kode maupun pada pratinjaunya.
+     * masih kosong, dan bisa langsung mengetik menimpanya.
      */
     $kotak = '□';
 
@@ -47,7 +48,7 @@
 
     $angka = fn (string $n) => $tuts($n, null, 'angka');
 
-    $pecahanKosong = '\frac{' . $kotak . '}{' . $kotak . '}';
+    $pecahanKosong = '\frac{'.$kotak.'}{'.$kotak.'}';
 
     // Susunan tutsnya meniru kalkulator: angka di kiri, hitungan di tengah,
     // pengatur di kanan — tempat yang sudah dihafal tangan.
@@ -84,7 +85,7 @@
         '@bersih' => 'Kosongkan seluruhnya',
         '@kiri'   => 'Geser kursor ke kiri',
         '@kanan'  => 'Geser kursor ke kanan',
-        '@kotak'  => 'Lompat ke kotak berikutnya, atau ke ujung rumus bila sudah terisi semua',
+        '@kotak'  => 'Lompat ke kotak berikutnya (juga lewat tuts Tab)',
     ];
 
     /*
@@ -94,23 +95,23 @@
      */
     $fungsi = [
         'Fungsi' => [
-            'sin(' . $kotak . ')', 'cos(' . $kotak . ')', 'tan(' . $kotak . ')',
-            'log(' . $kotak . ')', 'log_{' . $kotak . '}(' . $kotak . ')', 'ln(' . $kotak . ')',
-            'f(' . $kotak . ')', 'lim_{' . $kotak . '}', '%',
+            'sin('.$kotak.')', 'cos('.$kotak.')', 'tan('.$kotak.')',
+            'log('.$kotak.')', 'log_{'.$kotak.'}('.$kotak.')', 'ln('.$kotak.')',
+            'f('.$kotak.')', 'lim_{'.$kotak.'}', '%',
         ],
         'Pangkat, indeks & akar' => [
-            $kotak . '^{' . $kotak . '}', $kotak . '^2', $kotak . '^3',
-            $kotak . '_{' . $kotak . '}', $kotak . '_{' . $kotak . '}^{' . $kotak . '}',
-            '\sqrt{' . $kotak . '}', '\sqrt[3]{' . $kotak . '}',
-            '\sqrt[' . $kotak . ']{' . $kotak . '}',
+            $kotak.'^{'.$kotak.'}', $kotak.'^2', $kotak.'^3',
+            $kotak.'_{'.$kotak.'}', $kotak.'_{'.$kotak.'}^{'.$kotak.'}',
+            '\sqrt{'.$kotak.'}', '\sqrt[3]{'.$kotak.'}',
+            '\sqrt['.$kotak.']{'.$kotak.'}',
         ],
         'Kalkulus & deret' => [
-            '\sum_{' . $kotak . '}^{' . $kotak . '}', '\prod_{' . $kotak . '}^{' . $kotak . '}',
-            '\int_{' . $kotak . '}^{' . $kotak . '}', '\int', '\partial', '\infty', '\Delta', '\nabla',
+            '\sum_{'.$kotak.'}^{'.$kotak.'}', '\prod_{'.$kotak.'}^{'.$kotak.'}',
+            '\int_{'.$kotak.'}^{'.$kotak.'}', '\int', '\partial', '\infty', '\Delta', '\nabla',
         ],
         'Kurung & nilai mutlak' => [
-            '(' . $kotak . ')', '[' . $kotak . ']', '\{' . $kotak . '\}', '|' . $kotak . '|',
-            '\left(' . $kotak . '\right)^{' . $kotak . '}',
+            '('.$kotak.')', '['.$kotak.']', '\{'.$kotak.'\}', '|'.$kotak.'|',
+            '\left('.$kotak.'\right)^{'.$kotak.'}',
         ],
     ];
 
@@ -130,66 +131,139 @@
     ];
 
     /*
-     * Perakit siap pakai, dikelompokkan supaya deretnya tidak menjadi satu
-     * baris panjang yang harus ditelusuri dari ujung ke ujung.
+     * Perakit siap pakai, dikelompokkan menurut bab yang memakainya. Guru
+     * matematika mencari rumusnya lewat babnya — trigonometri, logaritma,
+     * kalkulus — bukan lewat bentuk susunannya.
      */
     $templat = [
         'Pecahan & akar' => [
             $pecahanKosong,
-            $kotak . $pecahanKosong,
-            $pecahanKosong . '\%',
-            '\frac{\sqrt{' . $kotak . '}}{' . $kotak . '}',
-            '\frac{' . $kotak . '^{' . $kotak . '}}{' . $kotak . '^{' . $kotak . '}}',
-            '\sqrt{' . $kotak . '}',
-            '\sqrt[3]{' . $kotak . '}',
-            '\sqrt[' . $kotak . ']{' . $kotak . '}',
-            '\sqrt{\frac{' . $kotak . '}{' . $kotak . '}}',
+            $kotak.$pecahanKosong,
+            $pecahanKosong.'\%',
+            '\frac{\sqrt{'.$kotak.'}}{'.$kotak.'}',
+            '\frac{'.$kotak.'^{'.$kotak.'}}{'.$kotak.'^{'.$kotak.'}}',
+            '\sqrt{'.$kotak.'}',
+            '\sqrt[3]{'.$kotak.'}',
+            '\sqrt['.$kotak.']{'.$kotak.'}',
+            '\sqrt{\frac{'.$kotak.'}{'.$kotak.'}}',
         ],
         'Pangkat & indeks' => [
-            $kotak . '^{' . $kotak . '}',
-            $kotak . '_{' . $kotak . '}',
-            $kotak . '_{' . $kotak . '}^{' . $kotak . '}',
-            $kotak . '^2',
-            $kotak . '^3',
-            $kotak . '^{-1}',
-            '(' . $kotak . ')^{' . $kotak . '}',
+            $kotak.'^{'.$kotak.'}',
+            $kotak.'_{'.$kotak.'}',
+            $kotak.'_{'.$kotak.'}^{'.$kotak.'}',
+            $kotak.'^2',
+            $kotak.'^3',
+            $kotak.'^{-1}',
+            '('.$kotak.')^{'.$kotak.'}',
+            '\frac{'.$kotak.'^{'.$kotak.'}}{'.$kotak.'^{'.$kotak.'}} = '.$kotak.'^{'.$kotak.'}',
         ],
+
+        /*
+         * Trigonometri. Nama fungsinya ditulis sebagai huruf biasa, bukan
+         * perintah \sin: keluaran papan ini huruf tampak, dan "sin" memang
+         * sudah berupa tiga huruf yang benar.
+         */
+        'Trigonometri' => [
+            'sin '.$kotak,
+            'cos '.$kotak,
+            'tan '.$kotak,
+            'sin^{2} '.$kotak.' + cos^{2} '.$kotak.' = 1',
+            'tan '.$kotak.' = \frac{sin '.$kotak.'}{cos '.$kotak.'}',
+            'sin '.$kotak.'° = \frac{'.$kotak.'}{'.$kotak.'}',
+            'sin('.$kotak.' ± '.$kotak.')',
+            '\frac{'.$kotak.'}{sin '.$kotak.'} = \frac{'.$kotak.'}{sin '.$kotak.'}',
+            $kotak.'^{2} = '.$kotak.'^{2} + '.$kotak.'^{2} − 2·'.$kotak.'·'.$kotak.'·cos '.$kotak,
+        ],
+
+        'Kurung' => [
+            '('.$kotak.')',
+            '['.$kotak.']',
+            '\{'.$kotak.'\}',
+            '|'.$kotak.'|',
+            '\left(\frac{'.$kotak.'}{'.$kotak.'}\right)',
+            '\left(\frac{'.$kotak.'}{'.$kotak.'}\right)^{'.$kotak.'}',
+            '('.$kotak.' + '.$kotak.')('.$kotak.' − '.$kotak.')',
+            '\left['.$kotak.' − ('.$kotak.' + '.$kotak.')\right]',
+        ],
+
+        /*
+         * Logaritma. Buku sekolah di Indonesia menulis basisnya sebagai
+         * pangkat di depan: ᵃlog b, bukan log_a b. Keduanya disediakan supaya
+         * guru tidak perlu menyusun sendiri bentuk yang tidak dipakainya.
+         */
+        'Logaritma' => [
+            '^{'.$kotak.'}log '.$kotak,
+            '^{'.$kotak.'}log '.$kotak.' = '.$kotak,
+            'log '.$kotak,
+            'ln '.$kotak,
+            'log_{'.$kotak.'} '.$kotak,
+            'log ('.$kotak.' × '.$kotak.') = log '.$kotak.' + log '.$kotak,
+            'log \frac{'.$kotak.'}{'.$kotak.'}',
+            'log '.$kotak.'^{'.$kotak.'} = '.$kotak.' log '.$kotak,
+        ],
+
+        'Kalkulus' => [
+            'lim_{'.$kotak.' \to '.$kotak.'} '.$kotak,
+            '\frac{d'.$kotak.'}{d'.$kotak.'}',
+            '\frac{d}{d'.$kotak.'}\left('.$kotak.'\right)',
+            'f\'('.$kotak.')',
+            '\int '.$kotak.' d'.$kotak,
+            '\int_{'.$kotak.'}^{'.$kotak.'} '.$kotak.' d'.$kotak,
+            '\sum_{'.$kotak.'}^{'.$kotak.'} '.$kotak,
+            '\frac{\partial '.$kotak.'}{\partial '.$kotak.'}',
+        ],
+
         'Notasi ilmiah & satuan' => [
-            $kotak . '\times 10^{' . $kotak . '}',
-            $kotak . '\%',
-            $kotak . '°',
-            $kotak . '°C',
-            $kotak . '\text{ cm}^3',
-            '\frac{' . $kotak . '\text{ km}}{\text{jam}}',
+            $kotak.'\times 10^{'.$kotak.'}',
+            $kotak.'\%',
+            $kotak.'°',
+            $kotak.'°C',
+            $kotak.'\text{ cm}^3',
+            '\frac{'.$kotak.'\text{ km}}{\text{jam}}',
         ],
         'Perbandingan' => [
-            $kotak . ' : ' . $kotak,
-            $pecahanKosong . ' = ' . $pecahanKosong,
-            $kotak . ' \leq ' . $kotak . ' \leq ' . $kotak,
-            $kotak . ' \neq ' . $kotak,
-            $kotak . ' \approx ' . $kotak,
+            $kotak.' : '.$kotak,
+            $pecahanKosong.' = '.$pecahanKosong,
+            $kotak.' \leq '.$kotak.' \leq '.$kotak,
+            $kotak.' \neq '.$kotak,
+            $kotak.' \approx '.$kotak,
         ],
     ];
 @endphp
 
 <style>
-    /* Hasil jadinya diberi ruang sendiri yang lapang — rumus bertingkat dua
-       seperti akar di dalam pecahan butuh tinggi lebih dari satu baris. */
-    #papanRumus .rumus-pratinjau {
-        min-height: 4.5rem;
-        font-size: 1.45rem;
-        line-height: 2;
+    /*
+        Kolom rumusnya sendiri. Ia yang diketik, jadi diberi ruang paling
+        lapang dan huruf paling besar di seluruh papan: rumus bertingkat dua
+        seperti akar di dalam pecahan butuh tinggi lebih dari satu baris, dan
+        guru harus bisa membaca pangkat kecilnya tanpa memicingkan mata.
+    */
+    #papanRumus .rumus-medan {
+        min-height: 5.2rem;
+        font-size: 1.6rem;
+        line-height: 2.1;
         border: 1px solid #dee2e6;
-        border-radius: .5rem;
-        padding: .75rem 1rem;
+        border-radius: .6rem;
+        padding: .85rem 1rem;
         background: #fff;
         overflow-x: auto;
+        cursor: text;
     }
-    #papanRumus .rumus-pratinjau:empty::before {
+    #papanRumus .rumus-medan:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 .25rem rgba(13, 110, 253, .25);
+        outline: 0;
+    }
+    #papanRumus .rumus-medan:empty::before {
         content: attr(data-kosong);
         color: #adb5bd;
         font-size: .95rem;
+        pointer-events: none;
     }
+    /* Bagian yang kotaknya sudah terhapus tetap harus bisa diklik. */
+    #papanRumus .rumus-medan .pembilang:empty::after,
+    #papanRumus .rumus-medan .penyebut:empty::after,
+    #papanRumus .rumus-medan .radikan:empty::after { content: '\00a0\00a0'; }
 
     /* Papan angka memakai sembilan lajur tetap supaya letak tiap tuts tidak
        berpindah saat tab diganti — tangan yang sudah hafal tidak perlu
@@ -207,17 +281,55 @@
     #papanRumus .rumus-lepas { display: flex; flex-wrap: wrap; gap: .25rem; }
     #papanRumus .rumus-lepas .btn { min-width: 2.4rem; }
 
-    #papanRumus .rumus-templat .btn { min-width: 3.4rem; min-height: 3rem; font-size: 1.05rem; }
-
-    /* Kolom kode berlatar teduh: ia bagian teknis yang boleh diabaikan, bukan
-       kolom utama yang harus diisi. */
-    #papanRumus .rumus-kode {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: .85rem;
-        background: #f8f9fa;
+    /* ---------- Penyaring template ---------- */
+    /*
+        Dulu sebuah dropdown. Dengan delapan kelompok, memilih lewat dropdown
+        berarti dua kali klik dan satu daftar yang menutupi rumusnya sendiri.
+        Sebagai deretan pil, seluruh kelompok terbaca sekaligus dan berpindah
+        bab cukup sekali tekan.
+    */
+    #papanRumus .rumus-saring { display: flex; flex-wrap: wrap; gap: .3rem; }
+    #papanRumus .rumus-saring .btn {
+        border-radius: 999px;
+        padding: .2rem .7rem;
+        font-size: .76rem;
+        border-color: #e4e9f0;
+        color: #5b6b83;
+        background: #f7f9fc;
+    }
+    #papanRumus .rumus-saring .btn:hover { border-color: #b6c6dd; color: #223; }
+    #papanRumus .rumus-saring .btn.aktif {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
     }
 
-    #papanRumus .tab-pane { max-height: 17rem; overflow-y: auto; }
+    /* ---------- Tombol template ---------- */
+    #papanRumus .rumus-templat {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+        max-height: 11rem;
+        overflow-y: auto;
+        padding: .15rem;
+    }
+    #papanRumus .rumus-templat .btn {
+        min-width: 3.8rem;
+        min-height: 3.4rem;
+        padding: .4rem .6rem;
+        font-size: 1.05rem;
+        color: #223;
+        background: #fff;
+        border-color: #e4e9f0;
+        transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+    #papanRumus .rumus-templat .btn:hover {
+        border-color: #86b7fe;
+        box-shadow: 0 2px 8px rgba(16, 24, 40, .1);
+        transform: translateY(-1px);
+    }
+
+    #papanRumus .tab-pane { max-height: 15rem; overflow-y: auto; }
 </style>
 
 <div class="modal fade" id="papanRumus" tabindex="-1" aria-labelledby="papanRumusJudul" aria-hidden="true">
@@ -235,18 +347,12 @@
             </div>
 
             <div class="modal-body pt-2">
-                {{-- Hasil jadinya, persis seperti yang akan dibaca siswa. --}}
-                <div class="rumus-pratinjau soal-body mb-2" id="rumusPratinjau"
-                     data-kosong="Susun rumusnya lewat tombol di bawah — hasilnya tampil di sini."></div>
-
-                <div class="input-group input-group-sm mb-3">
-                    <span class="input-group-text" title="Bentuk LaTeX dari rumus di atas">
-                        <i class="bi bi-code-slash"></i>
-                    </span>
-                    <input type="text" class="form-control rumus-kode" id="rumusKode" spellcheck="false"
-                           placeholder="boleh juga ditulis langsung, mis. \frac{1}{2} + \sqrt{9}"
-                           aria-label="Kode rumus LaTeX">
-                </div>
+                {{-- Kolom rumusnya: diketik langsung, dan yang tampil di sini
+                     persis yang akan dibaca siswa. --}}
+                <div class="rumus-medan soal-body mb-3" id="rumusMedan"
+                     contenteditable="true" spellcheck="false" role="textbox" aria-multiline="false"
+                     aria-label="Rumus"
+                     data-kosong="Ketik angkanya di sini, susunannya dipasang dari tombol di bawah."></div>
 
                 <ul class="nav nav-pills nav-sm gap-1 mb-2" role="tablist">
                     @foreach ([
@@ -315,32 +421,34 @@
                 </div>
 
                 {{-- ---------------- Perakit siap pakai ---------------- --}}
-                <label class="form-label small text-muted mb-1" for="rumusKategori">Template</label>
-                <select class="form-select form-select-sm mb-2" id="rumusKategori">
-                    <option value="">Semua template</option>
-                    @foreach (array_keys($templat) as $nama)
-                        <option value="{{ $nama }}">{{ $nama }}</option>
-                    @endforeach
-                </select>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="text-muted" style="font-size:.7rem">Template</span>
+                    <div class="rumus-saring flex-grow-1">
+                        <button type="button" class="btn btn-sm aktif" data-kategori="">Semua</button>
+                        @foreach (array_keys($templat) as $nama)
+                            <button type="button" class="btn btn-sm" data-kategori="{{ $nama }}">{{ $nama }}</button>
+                        @endforeach
+                    </div>
+                </div>
 
-                <div class="rumus-lepas rumus-templat">
+                <div class="rumus-templat">
                     @foreach ($templat as $nama => $daftar)
                         @foreach ($daftar as $isi)
-                            <button type="button" class="btn btn-sm btn-outline-primary tuts-rumus"
+                            <button type="button" class="btn btn-sm tuts-rumus"
                                     data-kategori="{{ $nama }}" data-rumus="{{ $isi }}"
-                                    title="{{ $isi }}">{!! RumusLatex::urai($isi) !!}</button>
+                                    title="{{ $nama }}">{!! RumusLatex::urai($isi) !!}</button>
                         @endforeach
                     @endforeach
                 </div>
 
                 <div class="form-text mt-2">
-                    Kotak <strong>{{ $kotak }}</strong> adalah bagian yang masih harus diisi; tekan
-                    <i class="bi bi-box-arrow-in-right"></i> untuk melompat ke kotak berikutnya.
-                    Rumus disisipkan sebagai bagian dari teks soal — bukan gambar — jadi masih
-                    bisa disunting langsung di kolomnya setelah disisipkan.
-                    <strong>Klik ganda</strong> sebuah rumus di kolom soal untuk membukanya lagi
-                    di papan ini; menandai sepotong tulisan lalu membuka papan ini juga bisa,
-                    dan yang ditandai itulah yang diganti.
+                    Kotak <strong>{{ $kotak }}</strong> adalah bagian yang masih harus diisi — ketik
+                    menimpanya, lalu tekan <kbd>Tab</kbd> untuk lompat ke kotak berikutnya.
+                    Rumus disisipkan sebagai bagian dari teks soal — bukan gambar — jadi masih bisa
+                    disunting langsung di kolomnya setelah disisipkan.
+                    <strong>Klik ganda</strong> sebuah rumus di kolom soal untuk membukanya lagi di
+                    papan ini; menandai sepotong tulisan lalu membuka papan ini juga bisa, dan yang
+                    ditandai itulah yang diganti.
                 </div>
             </div>
 
@@ -376,12 +484,10 @@
 
         const KOTAK = @json($kotak);
 
-        const kode = document.getElementById('rumusKode');
-        const pratinjau = document.getElementById('rumusPratinjau');
+        const medan = document.getElementById('rumusMedan');
         const sasaran = document.getElementById('rumusSasaran');
         const pesan = document.getElementById('rumusPesan');
         const barisSendiri = document.getElementById('rumusBarisSendiri');
-        const kategori = document.getElementById('rumusKategori');
         const tombolSisip = document.getElementById('rumusSisipkan');
 
         // Sisipan ditunda sampai modal benar-benar tertutup. Bootstrap menahan
@@ -394,44 +500,105 @@
         // soal; sisipannya akan menggantikan tanda itu, bukan menambah.
         let menyunting = false;
 
+        // Posisi kursor terakhir di dalam kolom rumus. Tombol papan menahan
+        // fokus, tetapi tab Bootstrap dan pil penyaring sempat merebutnya.
+        let rentangTersimpan = null;
+
         function keluhkan(teks) {
             pesan.textContent = teks;
             pesan.classList.remove('d-none');
             setTimeout(() => pesan.classList.add('d-none'), 3000);
         }
 
-        /** Perbarui hasil jadinya setiap kali kodenya berubah. */
-        function segarkan() {
-            const isi = kode.value.trim();
+        // ------------------------------------------------------------------
+        // Kursor
+        // ------------------------------------------------------------------
 
-            pratinjau.innerHTML = isi === '' ? '' : (window.EditorSoal?.dariLatex(isi) ?? '');
+        function simpanRentang() {
+            const sel = document.getSelection();
+
+            if (!sel || !sel.rangeCount) return;
+
+            const rentang = sel.getRangeAt(0);
+
+            if (medan.contains(rentang.commonAncestorContainer)) {
+                rentangTersimpan = rentang.cloneRange();
+            }
         }
 
-        /**
-         * Sisipkan potongan pada posisi kursor kolom kode.
-         *
-         * Setelah disisipkan kursornya langsung ditaruh pada kotak kosong
-         * pertama milik potongan itu — menekan "pecahan" lalu mengetik angka
-         * harus langsung mengisi pembilangnya, bukan menambah di belakangnya.
-         */
-        function sisip(potongan) {
-            const awal = kode.selectionStart ?? kode.value.length;
-            const akhir = kode.selectionEnd ?? awal;
+        function pilih(rentang) {
+            const sel = document.getSelection();
 
-            kode.value = kode.value.slice(0, awal) + potongan + kode.value.slice(akhir);
+            medan.focus();
+            sel.removeAllRanges();
+            sel.addRange(rentang);
+            simpanRentang();
+        }
 
-            const sesudah = awal + potongan.length;
-            const kotak = kode.value.indexOf(KOTAK, awal);
+        function keUjung() {
+            const rentang = document.createRange();
+            rentang.selectNodeContents(medan);
+            rentang.collapse(false);
+            pilih(rentang);
+        }
 
-            kode.focus();
+        /** Titik tempat sisipan berikutnya mendarat. */
+        function titikSisip() {
+            const sel = document.getSelection();
 
-            if (kotak !== -1 && kotak < sesudah) {
-                kode.setSelectionRange(kotak, kotak + 1);
-            } else {
-                kode.setSelectionRange(sesudah, sesudah);
+            if (sel && sel.rangeCount) {
+                const rentang = sel.getRangeAt(0);
+
+                if (medan.contains(rentang.commonAncestorContainer)) return rentang;
             }
 
-            segarkan();
+            if (rentangTersimpan && medan.contains(rentangTersimpan.commonAncestorContainer)) {
+                return rentangTersimpan;
+            }
+
+            const ujung = document.createRange();
+            ujung.selectNodeContents(medan);
+            ujung.collapse(false);
+
+            return ujung;
+        }
+
+        // ------------------------------------------------------------------
+        // Kotak kosong
+        // ------------------------------------------------------------------
+
+        /** Seluruh kotak kosong pada sepotong rumus, berurutan dari kiri. */
+        function semuaKotak(akar) {
+            const sumber = akar || medan;
+            const daftar = [];
+
+            function telusuri(simpul) {
+                let dari = simpul.textContent.indexOf(KOTAK);
+
+                while (dari !== -1) {
+                    const rentang = document.createRange();
+                    rentang.setStart(simpul, dari);
+                    rentang.setEnd(simpul, dari + 1);
+                    daftar.push(rentang);
+
+                    dari = simpul.textContent.indexOf(KOTAK, dari + 1);
+                }
+            }
+
+            // Simpul teks tidak dikunjungi oleh penelusurnya sendiri; yang
+            // disisipkan kerap justru berupa teks lepas seperti "sin □".
+            if (sumber.nodeType === 3) {
+                telusuri(sumber);
+
+                return daftar;
+            }
+
+            const jalan = document.createTreeWalker(sumber, NodeFilter.SHOW_TEXT);
+            let simpul;
+
+            while ((simpul = jalan.nextNode())) telusuri(simpul);
+
+            return daftar;
         }
 
         /**
@@ -439,65 +606,99 @@
          *
          * Bila semuanya sudah terisi, kursor dibawa ke ujung rumus. Itu yang
          * dibutuhkan tepat sesudah mengisi kotak terakhir: kursor masih berada
-         * di dalam kurung kurawal milik penyebut, dan tanda hitung yang
-         * ditekan sesudahnya akan ikut masuk ke dalam penyebut — "3/4+" alih-
-         * alih "3/4 +".
+         * di dalam penyebut, dan tanda hitung yang ditekan sesudahnya akan ikut
+         * masuk ke dalam penyebut itu.
          */
         function kotakBerikutnya() {
-            const dari = kode.selectionEnd ?? 0;
-            const titik = kode.value.indexOf(KOTAK, dari);
-            const tujuan = titik === -1 ? kode.value.indexOf(KOTAK) : titik;
+            const daftar = semuaKotak();
 
-            kode.focus();
-
-            if (tujuan === -1) {
-                kode.setSelectionRange(kode.value.length, kode.value.length);
+            if (daftar.length === 0) {
+                keUjung();
 
                 return;
             }
 
-            kode.setSelectionRange(tujuan, tujuan + 1);
+            const sel = document.getSelection();
+            const acuan = sel && sel.rangeCount && medan.contains(sel.getRangeAt(0).commonAncestorContainer)
+                ? sel.getRangeAt(0)
+                : null;
+
+            const berikut = acuan
+                ? daftar.find(r => r.compareBoundaryPoints(Range.START_TO_START, acuan) > 0)
+                : null;
+
+            pilih(berikut || daftar[0]);
+        }
+
+        // ------------------------------------------------------------------
+        // Penyuntingan
+        // ------------------------------------------------------------------
+
+        /**
+         * Pasang sepotong penanda pada posisi kursor.
+         *
+         * Simpulnya dipasang sendiri lewat Range, bukan lewat insertHTML:
+         * perintah bawaan peramban membongkar pecahan bila kursor berada di
+         * tengah kalimat. Lihat penjelasan yang sama di editor-kaya.
+         */
+        function sisip(html) {
+            const rentang = titikSisip();
+
+            medan.focus();
+            rentang.deleteContents();
+
+            const potongan = rentang.createContextualFragment(html);
+            const simpul = [...potongan.childNodes];
+
+            rentang.insertNode(potongan);
+
+            if (simpul.length === 0) return;
+
+            // Kursor langsung ditaruh pada kotak kosong pertama milik sisipan
+            // itu: menekan "pecahan" lalu mengetik angka harus mengisi
+            // pembilangnya, bukan menambah di belakangnya.
+            const kotak = simpul.flatMap(s => semuaKotak(s));
+
+            if (kotak.length > 0) {
+                pilih(kotak[0]);
+
+                return;
+            }
+
+            const sesudah = document.createRange();
+            sesudah.setStartAfter(simpul[simpul.length - 1]);
+            sesudah.collapse(true);
+            pilih(sesudah);
+        }
+
+        /** Pasang sebuah bentuk yang disimpan tombolnya sebagai LaTeX. */
+        function sisipRumus(latex) {
+            sisip(window.EditorSoal?.dariLatex(latex) ?? '');
         }
 
         function geser(arah) {
-            const posisi = (kode.selectionStart ?? 0) + arah;
-            const aman = Math.max(0, Math.min(kode.value.length, posisi));
-
-            kode.focus();
-            kode.setSelectionRange(aman, aman);
-        }
-
-        /** Hapus satu huruf di kiri kursor, atau bagian yang sedang ditandai. */
-        function hapus() {
-            const awal = kode.selectionStart ?? 0;
-            const akhir = kode.selectionEnd ?? awal;
-
-            kode.focus();
-
-            if (awal !== akhir) {
-                kode.value = kode.value.slice(0, awal) + kode.value.slice(akhir);
-                kode.setSelectionRange(awal, awal);
-            } else if (awal > 0) {
-                kode.value = kode.value.slice(0, awal - 1) + kode.value.slice(awal);
-                kode.setSelectionRange(awal - 1, awal - 1);
-            }
-
-            segarkan();
+            medan.focus();
+            document.getSelection()?.modify('move', arah, 'character');
+            simpanRentang();
         }
 
         const aksi = {
-            '@hapus': hapus,
-            '@bersih': function () {
-                kode.value = '';
-                kode.focus();
-                segarkan();
+            '@hapus': function () {
+                medan.focus();
+                document.execCommand('delete');
+                simpanRentang();
             },
-            '@kiri': () => geser(-1),
-            '@kanan': () => geser(1),
+            '@bersih': function () {
+                medan.innerHTML = '';
+                rentangTersimpan = null;
+                medan.focus();
+            },
+            '@kiri': () => geser('backward'),
+            '@kanan': () => geser('forward'),
             '@kotak': kotakBerikutnya,
         };
 
-        // Tombol papan tidak boleh merebut fokus dari kolom kode: posisi
+        // Tombol papan tidak boleh merebut fokus dari kolom rumus: posisi
         // kursor di sanalah yang menentukan di mana potongan berikutnya
         // mendarat.
         papan.querySelectorAll('.tuts-rumus').forEach(function (tombol) {
@@ -505,30 +706,63 @@
             tombol.addEventListener('click', function () {
                 const nilai = tombol.dataset.rumus;
 
-                (aksi[nilai] || (() => sisip(nilai)))();
+                (aksi[nilai] || (() => sisipRumus(nilai)))();
             });
         });
 
         papan.querySelectorAll('[data-bs-toggle="pill"]')
             .forEach(t => t.addEventListener('mousedown', e => e.preventDefault()));
 
-        kode.addEventListener('input', segarkan);
-
-        // Papan ini hampir selalu dipakai di dalam formulir soal. Tanpa
-        // penahanan ini, Enter di kolom kode akan mengirim formulirnya dan
-        // menyimpan soal yang belum selesai ditulis.
-        kode.addEventListener('keydown', function (e) {
-            if (e.key !== 'Enter') return;
-
-            e.preventDefault();
-            sisipkan();
+        document.addEventListener('selectionchange', function () {
+            if (papan.classList.contains('show')) simpanRentang();
         });
 
-        kategori.addEventListener('change', function () {
-            const pilihan = this.value;
+        medan.addEventListener('keydown', function (e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                kotakBerikutnya();
 
-            papan.querySelectorAll('.rumus-templat .tuts-rumus').forEach(function (tombol) {
-                tombol.classList.toggle('d-none', pilihan !== '' && tombol.dataset.kategori !== pilihan);
+                return;
+            }
+
+            // Papan ini hampir selalu dipakai di dalam formulir soal. Tanpa
+            // penahanan ini, Enter akan mengirim formulirnya dan menyimpan soal
+            // yang belum selesai ditulis.
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sisipkan();
+            }
+        });
+
+        // Tempelan diratakan menjadi tulisan biasa, lalu diurai: rumus yang
+        // disalin dari laman web atau keluaran asisten AI kerap datang sebagai
+        // kode LaTeX mentah, dan di sinilah ia dirapikan.
+        medan.addEventListener('paste', function (e) {
+            const teks = e.clipboardData?.getData('text/plain');
+
+            if (!teks) return;
+
+            e.preventDefault();
+            sisip(window.EditorSoal?.dariLatex(teks) ?? '');
+        });
+
+        // ------------------------------------------------------------------
+        // Penyaring template
+        // ------------------------------------------------------------------
+
+        papan.querySelectorAll('.rumus-saring .btn').forEach(function (pil) {
+            pil.addEventListener('mousedown', e => e.preventDefault());
+            pil.addEventListener('click', function () {
+                const pilihan = pil.dataset.kategori;
+
+                papan.querySelectorAll('.rumus-saring .btn')
+                    .forEach(lain => lain.classList.toggle('aktif', lain === pil));
+
+                papan.querySelectorAll('.rumus-templat .tuts-rumus').forEach(function (tombol) {
+                    tombol.classList.toggle('d-none', pilihan !== '' && tombol.dataset.kategori !== pilihan);
+                });
+
+                papan.querySelector('.rumus-templat').scrollTop = 0;
             });
         });
 
@@ -536,10 +770,26 @@
         // Sisipan ke kolom soal
         // ------------------------------------------------------------------
 
-        function sisipkan() {
-            const isi = kode.value.trim();
+        /** Rumus siap pakai: kotak yang tidak sempat diisi dibuang. */
+        function hasilAkhir() {
+            const salinan = medan.cloneNode(true);
+            const jalan = document.createTreeWalker(salinan, NodeFilter.SHOW_TEXT);
+            const teks = [];
+            let simpul;
 
-            if (isi === '') {
+            while ((simpul = jalan.nextNode())) teks.push(simpul);
+
+            teks.forEach(function (t) {
+                t.textContent = t.textContent.split(KOTAK).join('');
+            });
+
+            return { html: salinan.innerHTML.trim(), isi: salinan.textContent.trim() };
+        }
+
+        function sisipkan() {
+            const hasil = hasilAkhir();
+
+            if (hasil.isi === '' && !medan.querySelector('img')) {
                 keluhkan('Rumusnya masih kosong.');
 
                 return;
@@ -551,24 +801,18 @@
                 return;
             }
 
-            // Kotak yang tidak sempat diisi dibuang, bukan ikut tersimpan:
-            // kotak kosong di badan soal tidak berarti apa pun bagi siswa.
-            const html = window.EditorSoal.dariLatex(isi.split(KOTAK).join(''));
-
-            // Barisnya dipisah dengan <br>, bukan dengan <div> atau <p>.
-            // Peramban menata ulang sisipan bertag blok ke dalam kolom
-            // contenteditable: kelasnya dibuang dan diganti gaya sebaris hasil
-            // perhitungannya sendiri, sehingga <span class="akar"> berubah
-            // menjadi <span style="white-space:nowrap"> — akarnya lenyap,
-            // tinggal angkanya. Yang tersisip sebaris tidak mengalami itu.
             // Spasi penutup hanya dipasang pada rumus yang baru disisipkan:
             // tanpa jangkar itu kursor sulit keluar dari pecahan untuk
             // melanjutkan kalimatnya. Pada penggantian ia tidak diperlukan —
             // tulisan di sekitarnya sudah ada — dan menyuntingnya berulang
             // kali akan menumpuk spasi di belakang rumus.
+            //
+            // Barisnya dipisah dengan <br>, bukan dengan <div> atau <p>:
+            // peramban menata ulang sisipan bertag blok ke dalam kolom
+            // contenteditable dan kelasnya ikut terbuang.
             tertunda = barisSendiri.checked
-                ? '<br>' + html + '<br>'
-                : html + (menyunting ? '' : '&nbsp;');
+                ? '<br>' + hasil.html + '<br>'
+                : hasil.html + (menyunting ? '' : '&nbsp;');
 
             bootstrap.Modal.getOrCreateInstance(papan).hide();
         }
@@ -612,11 +856,11 @@
             if (satuBaris) barisSendiri.checked = false;
 
             /*
-             * Yang sedang ditandai di kolom soal dituangkan ke sini sebagai
-             * kode. Dua keadaan bermuara ke jalan yang sama:
+             * Yang sedang ditandai di kolom soal dituangkan ke sini. Dua
+             * keadaan bermuara ke jalan yang sama:
              *
              *   - rumus yang sudah tersisip, ditandai oleh klik ganda di atas,
-             *     diuraikan balik menjadi LaTeX-nya;
+             *     diuraikan balik lalu disusun kembali — bentuknya tetap sama;
              *   - rumus yang terlanjur tertulis sebagai kode mentah —
              *     tertempel dari laman web atau keluaran asisten AI — ditandai
              *     sendiri oleh guru, lalu dirapikan di sini.
@@ -628,34 +872,32 @@
 
             menyunting = terpilih !== '';
 
-            if (menyunting) kode.value = terpilih;
+            if (menyunting) medan.innerHTML = window.EditorSoal.dariLatex(terpilih);
 
             tombolSisip.innerHTML = menyunting
                 ? '<i class="bi bi-arrow-repeat me-1"></i>Ganti'
                 : '<i class="bi bi-plus-lg me-1"></i>Sisipkan';
-
-            segarkan();
         });
 
         papan.addEventListener('shown.bs.modal', function () {
-            kode.focus();
-            kode.setSelectionRange(kode.value.length, kode.value.length);
+            rentangTersimpan = null;
+            keUjung();
         });
 
         papan.addEventListener('hidden.bs.modal', function () {
             if (tertunda) {
                 window.EditorSoal.sisipHtml(tertunda);
                 tertunda = null;
-                kode.value = '';
+                medan.innerHTML = '';
             } else if (menyunting) {
-                // Batal menyunting. Kode yang tertinggal milik rumus yang tadi
+                // Batal menyunting. Rumus yang tertinggal milik bagian yang tadi
                 // ditandai, bukan rancangan guru sendiri; dibiarkan, ia akan
                 // tersisip untuk kedua kalinya saat papan dibuka lagi.
-                kode.value = '';
+                medan.innerHTML = '';
             }
 
             menyunting = false;
-            segarkan();
+            rentangTersimpan = null;
         });
     })();
 </script>
