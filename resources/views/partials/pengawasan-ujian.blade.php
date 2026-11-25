@@ -321,6 +321,7 @@
         elPesan.textContent = PESAN[jenis] || '';
         elCatatan.textContent = 'Soal disembunyikan selama pelanggaran berlangsung. Kejadian ini tercatat pada layar pengawas, dan hitung mundur ujian tetap berjalan.';
         tblLanjut.hidden = false;
+        tblLanjut.disabled = false;
         tblPenuh.hidden = ! bisaLayarPenuh()
             || jenis === 'tab_baru' || jenis === 'salin_tempel' || jenis === 'hilang_fokus';
         if (tautanRuang) tautanRuang.hidden = true;
@@ -369,27 +370,100 @@
         return !! (document.fullscreenEnabled && document.documentElement.requestFullscreen);
     }
 
-    tblLanjut.addEventListener('click', function () {
+    /**
+     * Minta layar penuh dari dalam penanganan klik.
+     *
+     * Peramban hanya menerima permintaan layar penuh yang lahir dari tindakan
+     * pengguna, dan di tirai ini klik tombolnya adalah satu-satunya tindakan
+     * yang tersedia — kalau kesempatan itu tidak dipakai sekarang, ia hilang.
+     *
+     * Kembaliannya: janji bila perambannya memberi satu, `true` bila
+     * permintaannya terkirim tanpa janji (peramban lama), dan `false` bila
+     * tidak ada yang diminta — layar penuh sudah aktif, atau tidak didukung.
+     */
+    function mintaLayarPenuh() {
+        if (! bisaLayarPenuh() || sedangPenuh()) return false;
+
+        var janji;
+        try {
+            janji = document.documentElement.requestFullscreen();
+        } catch (e) {
+            return false;
+        }
+
+        if (janji && janji.then) {
+            if (janji.catch) janji.catch(function () {});
+            return janji;
+        }
+
+        return true;
+    }
+
+    function goyangTirai() {
+        tirai.classList.remove('tirai-goyang');
+        void tirai.offsetWidth;                 // paksa animasinya dimulai ulang
+        tirai.classList.add('tirai-goyang');
+    }
+
+    /*
+     * Keputusan menutup tirai, diambil sesudah ukuran jendela sempat berubah.
+     *
+     * Tirai hanya boleh ditutup kalau keadaannya benar-benar sudah pulih;
+     * kalau tidak, siswa cukup menekan tombol lanjut untuk terus membaca soal
+     * di separuh layar.
+     */
+    function selesaikanLanjut() {
         if (terkunci) return;
 
-        // Tirai hanya boleh ditutup kalau keadaannya benar-benar sudah pulih;
-        // kalau tidak, siswa cukup menekan tombol ini untuk terus membaca soal
-        // di separuh layar.
         if (periksaGeometri()) {
-            tirai.classList.remove('tirai-goyang');
-            void tirai.offsetWidth;             // paksa animasinya dimulai ulang
-            tirai.classList.add('tirai-goyang');
+            if (tirai.hidden) tirai.hidden = false;
+            goyangTirai();
             return;
         }
 
         pelanggaranGeometri = null;
         tutupTirai();
+    }
+
+    tblLanjut.addEventListener('click', function () {
+        if (terkunci) return;
+
+        var hasil = mintaLayarPenuh();
+
+        // Layar penuh sudah aktif atau tidak dapat diminta: tidak ada yang
+        // perlu ditunggu.
+        if (hasil === false) { selesaikanLanjut(); return; }
+
+        /*
+         * Jendela baru selesai berubah ukuran beberapa saat sesudah layar
+         * penuh aktif. Geometri yang diperiksa terlalu cepat masih membaca
+         * ukuran yang lama, dan tirai akan bergoyang padahal keadaannya sudah
+         * pulih — karena itu pemeriksaannya ditunda sejenak.
+         */
+        tblLanjut.disabled = true;
+
+        var sudah = false;
+        var lanjut = function () {
+            if (sudah) return;
+            sudah = true;
+            tblLanjut.disabled = false;
+            selesaikanLanjut();
+        };
+
+        if (hasil === true) {
+            setTimeout(lanjut, 450);
+            return;
+        }
+
+        hasil.then(function () { setTimeout(lanjut, 450); }, lanjut);
+
+        // Batas waktu, apa pun jawaban perambannya: ada lingkungan yang
+        // janji requestFullscreen()-nya tidak pernah selesai.
+        setTimeout(lanjut, 2000);
     });
 
     tblPenuh.addEventListener('click', function () {
-        if (! bisaLayarPenuh()) return;
-        var janji = document.documentElement.requestFullscreen();
-        if (janji && janji.catch) janji.catch(function () {});
+        mintaLayarPenuh();
     });
 
     // =====================================================================
@@ -746,9 +820,23 @@
                 pernahPenuh = true;
                 masukPenuhPada = Date.now();
 
-                // Kembali ke layar penuh menutup tirainya bila itu memang yang
-                // sedang diminta.
-                if (! tirai.hidden && ! terkunci) tutupTirai();
+                /*
+                 * Kembali ke layar penuh menutup tirainya bila itu memang yang
+                 * sedang diminta. Geometrinya diperiksa ulang lebih dulu:
+                 * layar penuh tidak membatalkan pembelahan layar, dan tirai
+                 * yang menutup soal tidak boleh dibuka oleh jendela yang masih
+                 * berbagi layar dengan aplikasi lain.
+                 *
+                 * Pemeriksaannya ditunda sejenak karena ukuran jendela baru
+                 * rampung beberapa saat sesudah layar penuh aktif.
+                 */
+                setTimeout(function () {
+                    if (terkunci || tirai.hidden) return;
+                    if (periksaGeometri()) return;
+
+                    pelanggaranGeometri = null;
+                    tutupTirai();
+                }, 450);
                 return;
             }
 
