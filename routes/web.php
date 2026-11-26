@@ -80,6 +80,7 @@ Route::middleware('pengelola')->group(function () {
     Route::get('soal/export', [SoalController::class, 'export'])->name('soal.export');
     Route::patch('soal/{soal}/toggle', [SoalController::class, 'toggle'])->name('soal.toggle');
     Route::delete('soal/hapus-massal', [SoalController::class, 'hapusMassal'])->name('soal.hapus-massal');
+    Route::post('soal/salin', [SoalController::class, 'salin'])->name('soal.salin');
     Route::resource('soal', SoalController::class);
 
     // --- 3. Pemilihan soal yang diujikan (paket soal) ---

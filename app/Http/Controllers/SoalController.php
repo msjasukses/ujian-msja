@@ -13,6 +13,7 @@ use App\Support\Pengguna;
 use App\Support\Referensi;
 use App\Support\TeksSoal;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -43,7 +44,11 @@ class SoalController extends Controller
             'items' => $items,
             'stat' => $stat,
             'total' => $this->kueriDasar()->count(),
-            'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
+            // Penempatan tiap topik ikut dimuat: jendela "Salin ke topik"
+            // menampilkannya sebagai keterangan pilihan tujuan.
+            'daftarTopik' => Topik::aktif()->milikPengguna()
+                ->with(['mataPelajaran', 'tingkatKelas', 'jurusan'])
+                ->orderBy('nama_topik')->get(),
         ]);
     }
 
@@ -107,6 +112,74 @@ class SoalController extends Controller
         return $this->hapusBanyak($r, $this->kueriDasar(), fn (Soal $s) => $s->paketDetail()->exists()
             ? '"'.Str::limit(TeksSoal::polos($s->pertanyaan), 40).'" masih dipakai pada paket soal.'
             : null, 'soal');
+    }
+
+    /**
+     * Salin butir soal ke sebuah topik.
+     *
+     * Satu alamat melayani dua tombol di halaman daftar: tombol salin pada
+     * satu baris, dan "Salin terpilih" untuk butir yang dicentang — keduanya
+     * mengirim daftar id yang sama bentuknya, jadi menyalin satu butir tidak
+     * lewat jalan yang berbeda dari menyalin lima puluh.
+     *
+     * Butirnya diambil lewat kueriDasar(), bukan langsung dari id kiriman,
+     * supaya guru tidak bisa ikut menyalin milik guru lain dengan menyelipkan
+     * id; topik tujuannya pun dibatasi pada topik yang tampil di daftarnya
+     * sendiri, sama seperti pembatasan topik di formulir input soal.
+     */
+    public function salin(Request $r)
+    {
+        $data = $r->validate([
+            'ids' => ['required', 'array', 'max:500'],
+            'ids.*' => ['integer'],
+            'topik_id' => ['required', 'integer', Rule::in(Topik::milikPengguna()->pluck('id')->all())],
+            'ikut_penempatan' => ['nullable', 'boolean'],
+        ], [
+            'ids.required' => 'Pilih minimal satu soal yang akan disalin.',
+            'topik_id.required' => 'Pilih dulu topik tujuan salinannya.',
+            'topik_id.in' => 'Topik tujuan tidak ada pada daftar topik Anda.',
+        ]);
+
+        $topik = Topik::findOrFail($data['topik_id']);
+        $ikutPenempatan = $r->boolean('ikut_penempatan');
+        $sumber = $this->kueriDasar()->whereIn('id', $data['ids'])->orderBy('id')->get();
+
+        if ($sumber->isEmpty()) {
+            return back()->with('error', 'Tidak ada soal yang disalin.');
+        }
+
+        DB::transaction(function () use ($sumber, $topik, $ikutPenempatan) {
+            foreach ($sumber as $asal) {
+                // Kode soal tidak ikut disalin: kode itu penanda satu butir,
+                // dan dua baris berkode sama akan menyulitkan guru sendiri
+                // saat menyunting, mengexport, lalu mengimpornya kembali.
+                // Lampiran audio/video cukup ditunjuk bersama — berkasnya
+                // dinamai dari sidik jari isinya dan tidak pernah dihapus
+                // (lihat MediaSoalService), jadi salinan tetap bisa memutarnya.
+                $salinan = $asal->replicate(['kode_soal']);
+                $salinan->topik_id = $topik->id;
+
+                // Penempatan salinan boleh ikut topik tujuannya — persis yang
+                // dikerjakan formulir input soal ketika topiknya dipilih.
+                // Kolom yang di topiknya sendiri belum terisi dibiarkan
+                // seperti aslinya, supaya salinan tidak justru kehilangan
+                // mapel atau tingkat yang sudah benar.
+                if ($ikutPenempatan) {
+                    foreach (['mata_pelajaran_id', 'tingkat_kelas_id', 'jurusan_id'] as $kolom) {
+                        if (filled($topik->{$kolom})) {
+                            $salinan->{$kolom} = $topik->{$kolom};
+                        }
+                    }
+                }
+
+                $salinan->save();
+            }
+        });
+
+        return back()->with(
+            'success',
+            $sumber->count().' soal disalin ke topik "'.Str::limit($topik->nama_topik, 40).'".'
+        );
     }
 
     /** Nonaktifkan / aktifkan cepat dari daftar. */

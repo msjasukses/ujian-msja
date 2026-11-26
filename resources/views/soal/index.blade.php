@@ -19,6 +19,10 @@
     <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
         <span>Daftar Soal</span>
         <div class="d-flex flex-wrap gap-2">
+            {{-- Muncul begitu ada baris yang dicentang; perilakunya di layouts.app. --}}
+            <button type="button" class="btn btn-sm btn-primary d-none" data-pilih-aksi data-salin-terpilih>
+                <i class="bi bi-files me-1"></i>Salin terpilih (<span data-jumlah>0</span>)
+            </button>
             <x-hapus-massal :action="route('soal.hapus-massal')" label="soal" />
             <a href="{{ route('soal.import.form') }}" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-upload me-1"></i>Import Word / Excel
@@ -92,7 +96,7 @@
                     <th>Kunci</th>
                     <th class="text-center">Bobot</th>
                     <th>Kesukaran</th>
-                    <th style="width:9rem"></th>
+                    <th style="width:11.5rem"></th>
                 </tr>
             </thead>
             <tbody>
@@ -129,6 +133,11 @@
                             <a href="{{ route('soal.edit', $s) }}" class="btn btn-sm btn-outline-secondary" title="Ubah">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <button type="button" class="btn btn-sm btn-outline-primary" title="Salin ke topik"
+                                    data-salin-soal="{{ $s->id }}"
+                                    data-salin-ringkas="{{ Str::limit(TeksSoal::polos($s->pertanyaan), 60) }}">
+                                <i class="bi bi-files"></i>
+                            </button>
                             <form method="POST" action="{{ route('soal.toggle', $s) }}" class="d-inline">
                                 @csrf @method('PATCH')
                                 <button class="btn btn-sm btn-outline-secondary" title="{{ $s->is_aktif ? 'Nonaktifkan' : 'Aktifkan' }}">
@@ -160,4 +169,6 @@
         <div class="card-body border-top">{{ $items->links() }}</div>
     @endif
 </div>
+
+@include('soal.partials.salin-ke-topik')
 @endsection

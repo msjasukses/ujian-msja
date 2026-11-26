@@ -99,11 +99,18 @@
         if (pesan && !window.confirm(pesan)) { e.preventDefault(); }
     });
 
-    // Hapus massal (komponen hapus-massal + pilih): hitung baris yang dicentang,
-    // tampilkan tombolnya, dan siapkan pesan konfirmasi untuk listener di atas.
+    // Kotak centang halaman daftar (komponen pilih): hitung baris yang
+    // dicentang, tampilkan tombol yang bekerja atas pilihan itu, dan siapkan
+    // pesan konfirmasi hapus massal untuk listener di atas.
+    //
+    // Tombolnya tidak selalu "hapus": halaman boleh menambah tombol lain atas
+    // pilihan yang sama — mis. "Salin terpilih" di bank soal — cukup dengan
+    // atribut data-pilih-aksi dan satu <span data-jumlah> di dalamnya.
     (function () {
         const form = document.getElementById('hapusMassal');
-        if (!form) return;
+        const tombol = () => [...document.querySelectorAll('[data-hapus-massal-tombol], [data-pilih-aksi]')];
+
+        if (!form && tombol().length === 0) return;
 
         const semua = document.querySelector('[data-pilih-semua]');
         const baris = () => [...document.querySelectorAll('input[data-pilih]')];
@@ -112,12 +119,15 @@
             const kotak = baris();
             const n = kotak.filter(c => c.checked).length;
 
-            document.querySelectorAll('[data-hapus-massal-tombol]').forEach(t => {
-                t.querySelector('[data-jumlah]').textContent = n;
+            tombol().forEach(t => {
+                const jumlah = t.querySelector('[data-jumlah]');
+                if (jumlah) jumlah.textContent = n;
                 t.classList.toggle('d-none', n === 0);
             });
-            form.dataset.konfirmasi = form.dataset.aksi + ' ' + n + ' ' + form.dataset.label
-                + ' yang dicentang? ' + form.dataset.catatan;
+            if (form) {
+                form.dataset.konfirmasi = form.dataset.aksi + ' ' + n + ' ' + form.dataset.label
+                    + ' yang dicentang? ' + form.dataset.catatan;
+            }
             kotak.forEach(c => c.closest('tr')?.classList.toggle('table-active', c.checked));
 
             if (semua) {

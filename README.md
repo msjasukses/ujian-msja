@@ -19,7 +19,7 @@ ini tidak pernah menulis ke sana dan satu sumber kebenaran tetap terjaga.
 | Menu | Isi |
 | --- | --- |
 | **Topik** | CRUD topik + **Sinkron CP-TP-ATP** dari database kurikulum, export Excel |
-| **Bank Soal** | Input 5 jenis soal (teks Arab, simbol matematika, gambar), import **Word (.docx)** & **Excel (.xlsx/.csv)** berikut gambarnya, export Excel |
+| **Bank Soal** | Input 5 jenis soal (teks Arab, simbol matematika, gambar), import **Word (.docx)** & **Excel (.xlsx/.csv)** berikut gambarnya, **salin butir ke topik lain** (satuan atau sekaligus banyak), export Excel |
 | **Pemilihan Soal Diujikan** | Paket soal: pilih butir manual atau ambil acak per tingkat kesukaran, atur urutan & bobot |
 | **Registrasi Ujian** | Jadwal, durasi, token, KKM, pengacakan, proteksi kecurangan, kelas peserta, sinkron peserta, daftar hadir |
 | **Cadangan & Pemulihan** | Khusus admin. Backup seluruh data aplikasi (beserta gambar & audio/video soal) ke berkas ZIP, unduh, unggah, dan restore dengan cadangan pengaman otomatis. Cadangan data otomatis tiap malam bila cron menjalankan `schedule:run` |
@@ -985,6 +985,36 @@ disunting lalu diimpor kembali.
 
 Import berjalan dua langkah: berkas diurai menjadi pratinjau (lengkap dengan
 daftar baris yang gagal dibaca), baru butir yang dicentang disimpan.
+
+---
+
+## Menyalin Soal ke Topik Lain
+
+Satu butir kerap cocok untuk lebih dari satu topik. Di menu **Bank Soal**
+tersedia dua jalan masuk yang bermuara ke jendela yang sama:
+
+| Jalan masuk | Cara |
+| --- | --- |
+| Satu butir | Tombol <kbd>⧉</kbd> (**Salin ke topik**) pada baris butirnya |
+| Banyak butir | Centang baris yang diinginkan, lalu tombol **Salin terpilih (n)** di kepala daftar |
+
+Di jendelanya dipilih **topik tujuan** — daftarnya sama dengan yang tampil di
+formulir input soal, jadi guru hanya bisa menyalin ke topik yang memang
+miliknya. Pilihan **"Sesuaikan mata pelajaran, tingkat, dan jurusan salinan
+dengan topik tujuan"** membuat penempatan salinan ikut topiknya, persis seperti
+yang terjadi saat topik dipilih di formulir input soal; kolom yang di topiknya
+sendiri belum terisi dibiarkan seperti aslinya.
+
+Yang perlu diketahui tentang salinannya:
+
+- Butir aslinya **tidak berubah** — tetap di topik lamanya.
+- Opsi, kunci, bobot, level kognitif, tingkat kesukaran, pembahasan, gambar,
+  dan lampiran audio/video disalin apa adanya. Berkas audio/video cukup
+  ditunjuk bersama; ia dinamai dari sidik jari isinya dan tidak digandakan.
+- **Kode soal dikosongkan** pada salinan, supaya tidak ada dua butir berkode
+  sama saat bank soal diexport lalu diimpor kembali.
+- Salinan tidak otomatis masuk paket soal mana pun; pemilihannya tetap lewat
+  menu **Pemilihan Soal Diujikan**.
 
 ---
 
