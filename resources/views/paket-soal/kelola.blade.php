@@ -201,6 +201,14 @@
                                             @if ($s->topik)
                                                 <span class="small text-muted">{{ Str::limit($s->topik->nama_topik, 35) }}</span>
                                             @endif
+                                            {{-- Butir se-mata pelajaran buatan guru lain boleh ikut
+                                                 diujikan; pembuatnya disebut supaya jelas asalnya. --}}
+                                            @unless ($s->milik_saya)
+                                                <span class="small text-muted">
+                                                    &middot; <i class="bi bi-person"></i>
+                                                    {{ Str::limit($s->guru?->nama_ptk ?? 'guru lain', 24) }}
+                                                </span>
+                                            @endunless
                                         </div>
                                     </td>
                                     <td class="text-center small">{{ (float) $s->bobot }}</td>

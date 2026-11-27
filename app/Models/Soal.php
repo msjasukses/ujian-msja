@@ -4,7 +4,10 @@ namespace App\Models;
 
 use App\Models\Concerns\MilikGuru;
 use App\Support\AlamatPublik;
+use App\Support\Pengguna;
+use App\Support\Referensi;
 use App\Support\TeksSoal;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -165,6 +168,63 @@ class Soal extends Model
     public function scopeAktif($query)
     {
         return $query->where('is_aktif', true);
+    }
+
+    /**
+     * Butir yang boleh dilihat dan dipakai pengguna ini.
+     *
+     * Satu mata pelajaran kerap diampu beberapa guru pada tingkat yang
+     * berbeda — Matematika kelas 7 oleh seorang guru, kelas 8 oleh yang lain.
+     * Bank soalnya tetap bank soal mata pelajaran yang sama, jadi keduanya
+     * boleh saling melihat butir dan memilihnya untuk paket yang diujikan;
+     * di jenjang berjurusan, sebatas jurusan yang diajarnya.
+     *
+     * Butir yang mata pelajarannya belum diisi tidak ikut terbuka: tidak ada
+     * dasar untuk menentukan siapa yang berhak melihatnya, jadi ia tetap
+     * milik pembuatnya saja sampai mapelnya dilengkapi.
+     *
+     * Menyunting, menghapus, dan menonaktifkan tetap hak pemiliknya — itu
+     * dijaga milikPengguna() dari trait MilikGuru, bukan scope ini.
+     */
+    public function scopeBisaDilihat(Builder $q): Builder
+    {
+        $guruId = Pengguna::guruId();
+
+        if (! $guruId) {
+            return $q;
+        }
+
+        return $q->where(fn ($w) => $w
+            ->where($this->qualifyColumn('guru_id'), $guruId)
+            ->orWhere(fn ($seMapel) => $seMapel
+                ->whereIn($this->qualifyColumn('mata_pelajaran_id'), Referensi::mapel()->pluck('id'))
+                ->when(Referensi::pakaiJurusan(), fn ($j) => $j->where(fn ($w2) => $w2
+                    ->whereIn($this->qualifyColumn('jurusan_id'), Referensi::jurusan()->pluck('id'))
+                    ->orWhereNull($this->qualifyColumn('jurusan_id'))))));
+    }
+
+    /**
+     * Apakah butir ini boleh diubah pengguna yang sedang masuk.
+     *
+     * Butir guru lain yang se-mata pelajaran boleh dilihat dan disalin, tetapi
+     * tombol ubah, aktif/nonaktif, dan hapusnya tidak ditampilkan — dan bila
+     * alamatnya diketik langsung, SoalController tetap menolaknya.
+     */
+    public function getMilikSayaAttribute(): bool
+    {
+        $guruId = Pengguna::guruId();
+
+        return ! $guruId || (int) $this->guru_id === $guruId;
+    }
+
+    /**
+     * Butir guru lain yang se-mata pelajaran tetap bisa dibuka halaman
+     * lihatnya, jadi binding alamat memakai scope yang lebih longgar daripada
+     * milikPengguna() bawaan trait MilikGuru.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->resolveRouteBindingQuery($this->newQuery()->bisaDilihat(), $value, $field)->first();
     }
 
     public function getJenisLabelAttribute(): string

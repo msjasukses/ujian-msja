@@ -74,20 +74,73 @@ class PilihanTopikGuruTest extends TestCase
         $halaman->assertDontSee('Topik Tingkat Lain');
     }
 
-    public function test_dropdown_topik_di_menu_soal_ikut_tersaring(): void
+    /**
+     * Tempat yang menempatkan butir — Input Soal dan Import — tetap dibatasi
+     * mapel sekaligus tingkat yang diajar: di situ guru menulis data.
+     */
+    public function test_dropdown_topik_penempatan_dibatasi_mapel_dan_tingkat(): void
     {
-        $paket = PaketSoal::create([
-            'kode_paket' => 'TP-1', 'nama_paket' => 'Paket', 'is_aktif' => true,
-            'guru_id' => $this->guru->id,
-        ]);
-
-        foreach (['/soal', '/soal/create', '/soal/import', "/paket-soal/{$paket->id}/kelola"] as $url) {
+        foreach (['/soal/create', '/soal/import'] as $url) {
             $halaman = $this->get($url)->assertOk();
 
             $halaman->assertSee('Topik Saya');
             $halaman->assertDontSee('Topik Mapel Lain');
             $halaman->assertDontSee('Topik Tingkat Lain');
         }
+    }
+
+    /**
+     * Penyaring daftar justru harus selebar butir yang tampil. Bank soal satu
+     * mata pelajaran dibagi antar guru yang mengajar tingkat berbeda, jadi
+     * topik tingkat lain pada mapel yang sama ikut bisa dipilih — kalau
+     * tidak, butir yang kelihatan tak bisa disaring per topiknya. Mapel di
+     * luar pengampuan tetap tidak muncul.
+     */
+    public function test_dropdown_topik_penyaring_memuat_tingkat_lain_semapel(): void
+    {
+        $paket = PaketSoal::create([
+            'kode_paket' => 'TP-1', 'nama_paket' => 'Paket', 'is_aktif' => true,
+            'guru_id' => $this->guru->id,
+        ]);
+
+        foreach (['/soal', "/paket-soal/{$paket->id}/kelola"] as $url) {
+            $halaman = $this->get($url)->assertOk();
+
+            $halaman->assertSee('Topik Saya');
+            $halaman->assertSee('Topik Tingkat Lain');
+            $halaman->assertDontSee('Topik Mapel Lain');
+        }
+    }
+
+    /**
+     * Jendela "Salin ke topik" memilih tujuan penyalinan, jadi ia ikut aturan
+     * penempatan, bukan aturan penyaring: topik tingkat lain tidak boleh
+     * menjadi tujuan walau butirnya kelihatan.
+     */
+    public function test_tujuan_salin_soal_tetap_sebatas_tingkat_yang_diajar(): void
+    {
+        $this->get('/soal')->assertOk()->assertSeeInOrder(
+            ['id="salinTopik"', 'Topik Saya', '</select>'],
+            false,
+        );
+
+        $tujuan = $this->potongan($this->get('/soal')->getContent(), 'id="salinTopik"', '</select>');
+
+        $this->assertStringContainsString('Topik Saya', $tujuan);
+        $this->assertStringNotContainsString('Topik Tingkat Lain', $tujuan);
+        $this->assertStringNotContainsString('Topik Mapel Lain', $tujuan);
+    }
+
+    /** Potongan HTML antara dua penanda, untuk memeriksa isi satu select saja. */
+    protected function potongan(string $html, string $mulai, string $akhir): string
+    {
+        $awal = strpos($html, $mulai);
+        $this->assertNotFalse($awal, "Penanda \"{$mulai}\" tidak ditemukan di halaman.");
+
+        $ujung = strpos($html, $akhir, $awal);
+        $this->assertNotFalse($ujung, "Penanda \"{$akhir}\" tidak ditemukan sesudah \"{$mulai}\".");
+
+        return substr($html, $awal, $ujung - $awal);
     }
 
     public function test_admin_tetap_melihat_seluruh_topik(): void

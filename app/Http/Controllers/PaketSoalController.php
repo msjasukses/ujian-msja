@@ -100,9 +100,11 @@ class PaketSoalController extends Controller
         $sudahMasuk = $paket_soal->detail()->pluck('soal_id');
 
         $tersedia = Soal::aktif()
-            ->with(['topik', 'mataPelajaran'])
+            ->with(['topik', 'mataPelajaran', 'guru'])
             ->whereNotIn('id', $sudahMasuk)
-            ->when(Pengguna::guruId(), fn ($q, $g) => $q->where('guru_id', $g))
+            // Termasuk butir guru lain pada mata pelajaran yang diampu, walau
+            // tingkat kelasnya berbeda — lihat Soal::scopeBisaDilihat.
+            ->bisaDilihat()
             // Secara bawaan bank soal disaring mengikuti mapel & tingkat paket
             // supaya guru tidak perlu memfilter ulang setiap kali membuka.
             ->when($r->filled('mata_pelajaran_id') ? $r->mata_pelajaran_id : $paket_soal->mata_pelajaran_id,
@@ -122,7 +124,10 @@ class PaketSoalController extends Controller
             'paket' => $paket_soal->load('mataPelajaran', 'tingkatKelas', 'jurusan'),
             'terpilih' => $paket_soal->detail()->with('soal.topik')->get(),
             'tersedia' => $tersedia,
-            'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
+            // Selebar butir yang tampil di kanan, termasuk topik tingkat lain
+            // pada mapel yang sama; kalau tidak, butirnya kelihatan tetapi
+            // tidak bisa disaring per topiknya.
+            'daftarTopik' => Topik::aktif()->bisaDilihat()->orderBy('nama_topik')->get(),
         ]);
     }
 
@@ -135,8 +140,9 @@ class PaketSoalController extends Controller
         ], [], ['soal_id' => 'Butir soal']);
 
         $nomor = $paket_soal->nomorUrutBerikutnya();
-        // Hanya butir yang boleh dilihat pengguna ini; id soal guru lain diabaikan.
-        $bobotSoal = Soal::milikPengguna()->whereIn('id', $r->soal_id)->pluck('bobot', 'id');
+        // Hanya butir yang boleh dilihat pengguna ini — miliknya sendiri dan
+        // butir se-mata pelajaran; id butir mapel lain diabaikan.
+        $bobotSoal = Soal::bisaDilihat()->whereIn('id', $r->soal_id)->pluck('bobot', 'id');
         $jumlah = 0;
 
         DB::transaction(function () use ($paket_soal, $r, &$nomor, $bobotSoal, &$jumlah) {
@@ -252,7 +258,7 @@ class PaketSoalController extends Controller
                 ->when($paket_soal->tingkat_kelas_id, fn ($q, $v) => $q->where('tingkat_kelas_id', $v))
                 ->tap(fn ($q) => $this->saringJurusan($q, $paket_soal))
                 ->when($r->jenis_acak, fn ($q, $v) => $q->where('jenis', $v))
-                ->when(Pengguna::guruId(), fn ($q, $g) => $q->where('guru_id', $g))
+                ->bisaDilihat()
                 ->inRandomOrder()
                 ->limit($n)
                 ->get();

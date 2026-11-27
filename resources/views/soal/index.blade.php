@@ -3,7 +3,19 @@
 @section('subtitle', 'Kumpulan butir soal semua jenis')
 
 @section('content')
-@php use App\Models\Soal; use App\Support\TeksSoal; use App\Support\Referensi; $pakaiJurusan = Referensi::pakaiJurusan(); @endphp
+@php
+    use App\Models\Soal;
+    use App\Support\Pengguna;
+    use App\Support\Referensi;
+    use App\Support\TeksSoal;
+
+    $pakaiJurusan = Referensi::pakaiJurusan();
+    // Bank soal satu mata pelajaran dibagi antar guru yang mengajar tingkat
+    // berbeda, jadi guru perlu penyaring "milik saya"; admin melihat semua
+    // butir sejak awal dan tidak memerlukannya.
+    $pakaiPemilik = (bool) Pengguna::guruId();
+    $kolomSempit = $pakaiJurusan || $pakaiPemilik ? 2 : 3;
+@endphp
 
 <div class="row g-2 mb-3">
     <div class="col-6 col-lg-3"><x-stat label="Total butir" :value="$total" icon="bi-journal-text" /></div>
@@ -41,7 +53,7 @@
 
     <div class="card-body border-bottom bg-light-subtle py-2">
         <form class="row g-2 align-items-end">
-            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
+            <div class="col-6 col-md-{{ $kolomSempit }}">
                 <label class="form-label">Cari pertanyaan</label>
                 <input name="q" value="{{ request('q') }}" class="form-control form-control-sm">
             </div>
@@ -54,7 +66,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-6 col-md-{{ $pakaiJurusan ? 2 : 3 }}">
+            <div class="col-6 col-md-{{ $kolomSempit }}">
                 <label class="form-label">Topik</label>
                 <select name="topik_id" class="form-select form-select-sm">
                     <option value="">Semua</option>
@@ -76,6 +88,15 @@
                 <div class="col-6 col-md-2">
                     <label class="form-label">Jurusan</label>
                     <x-pilih-jurusan :value="request('jurusan_id')" kosong="Semua" class="form-select-sm" />
+                </div>
+            @endif
+            @if ($pakaiPemilik)
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Pembuat</label>
+                    <select name="pemilik" class="form-select form-select-sm">
+                        <option value="">Semua guru mapel</option>
+                        <option value="saya" @selected(request('pemilik') === 'saya')>Buatan saya</option>
+                    </select>
                 </div>
             @endif
             <div class="col-12 col-md-2 d-flex gap-2">
@@ -113,6 +134,12 @@
                                 &middot; {{ $s->mataPelajaran->nama_mapel ?? 'tanpa mapel' }}
                                 @if ($pakaiJurusan && $s->jurusan) &middot; {{ $s->jurusan->ringkas }} @endif
                                 @if ($s->level_kognitif) &middot; {{ $s->level_kognitif }} @endif
+                                {{-- Butir se-mata pelajaran buatan guru lain: pembuatnya
+                                     disebut, dan tombol ubah/hapusnya tidak ditampilkan. --}}
+                                @unless ($s->milik_saya)
+                                    &middot; <i class="bi bi-person"></i>
+                                    {{ Str::limit($s->guru?->nama_ptk ?? 'guru lain', 28) }}
+                                @endunless
                             </div>
                         </td>
                         <td>
@@ -130,25 +157,29 @@
                             <a href="{{ route('soal.show', $s) }}" class="btn btn-sm btn-outline-secondary" title="Lihat">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="{{ route('soal.edit', $s) }}" class="btn btn-sm btn-outline-secondary" title="Ubah">
-                                <i class="bi bi-pencil"></i>
-                            </a>
+                            @if ($s->milik_saya)
+                                <a href="{{ route('soal.edit', $s) }}" class="btn btn-sm btn-outline-secondary" title="Ubah">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            @endif
                             <button type="button" class="btn btn-sm btn-outline-primary" title="Salin ke topik"
                                     data-salin-soal="{{ $s->id }}"
                                     data-salin-ringkas="{{ Str::limit(TeksSoal::polos($s->pertanyaan), 60) }}">
                                 <i class="bi bi-files"></i>
                             </button>
-                            <form method="POST" action="{{ route('soal.toggle', $s) }}" class="d-inline">
-                                @csrf @method('PATCH')
-                                <button class="btn btn-sm btn-outline-secondary" title="{{ $s->is_aktif ? 'Nonaktifkan' : 'Aktifkan' }}">
-                                    <i class="bi {{ $s->is_aktif ? 'bi-toggle-on' : 'bi-toggle-off' }}"></i>
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ route('soal.destroy', $s) }}" class="d-inline"
-                                  data-konfirmasi="Hapus butir soal ini?">
-                                @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
-                            </form>
+                            @if ($s->milik_saya)
+                                <form method="POST" action="{{ route('soal.toggle', $s) }}" class="d-inline">
+                                    @csrf @method('PATCH')
+                                    <button class="btn btn-sm btn-outline-secondary" title="{{ $s->is_aktif ? 'Nonaktifkan' : 'Aktifkan' }}">
+                                        <i class="bi {{ $s->is_aktif ? 'bi-toggle-on' : 'bi-toggle-off' }}"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('soal.destroy', $s) }}" class="d-inline"
+                                      data-konfirmasi="Hapus butir soal ini?">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -170,5 +201,7 @@
     @endif
 </div>
 
-@include('soal.partials.salin-ke-topik')
+{{-- Tujuan penyalinan tetap topik yang diajarnya sendiri, bukan daftar
+     selebar penyaring di atas: menyalin menulis data baru. --}}
+@include('soal.partials.salin-ke-topik', ['daftarTopik' => $daftarTopikTujuan])
 @endsection

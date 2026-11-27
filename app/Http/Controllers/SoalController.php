@@ -24,8 +24,12 @@ class SoalController extends Controller
     public function index(Request $r)
     {
         $items = $this->kueriDasar()
-            ->with(['topik', 'mataPelajaran', 'tingkatKelas', 'jurusan'])
+            ->with(['topik', 'mataPelajaran', 'tingkatKelas', 'jurusan', 'guru'])
             ->when($r->q, fn ($q, $v) => $q->where('pertanyaan', 'like', "%{$v}%"))
+            // Bank soal satu mapel kini dibagi antar guru; penyaring ini
+            // mengembalikan daftar ke butir buatannya sendiri saja.
+            ->when($r->pemilik === 'saya' && Pengguna::guruId(),
+                fn ($q) => $q->where('guru_id', Pengguna::guruId()))
             ->when($r->jenis, fn ($q, $v) => $q->where('jenis', $v))
             ->when($r->topik_id, fn ($q, $v) => $q->where('topik_id', $v))
             ->when($r->mata_pelajaran_id, fn ($q, $v) => $q->where('mata_pelajaran_id', $v))
@@ -44,9 +48,14 @@ class SoalController extends Controller
             'items' => $items,
             'stat' => $stat,
             'total' => $this->kueriDasar()->count(),
+            // Dua daftar topik yang berbeda luasnya, sesuai gunanya.
+            // Penyaring daftar ikut selebar butir yang tampil — termasuk topik
+            // tingkat lain pada mapel yang sama; sedangkan tujuan penyalinan
+            // tetap topik yang memang diajarnya, karena menyalin menulis data.
+            'daftarTopik' => Topik::aktif()->bisaDilihat()->orderBy('nama_topik')->get(),
             // Penempatan tiap topik ikut dimuat: jendela "Salin ke topik"
             // menampilkannya sebagai keterangan pilihan tujuan.
-            'daftarTopik' => Topik::aktif()->milikPengguna()
+            'daftarTopikTujuan' => Topik::aktif()->milikPengguna()
                 ->with(['mataPelajaran', 'tingkatKelas', 'jurusan'])
                 ->orderBy('nama_topik')->get(),
         ]);
@@ -78,11 +87,13 @@ class SoalController extends Controller
 
     public function show(Soal $soal)
     {
-        return view('soal.show', ['item' => $soal->load(['topik', 'mataPelajaran', 'tingkatKelas', 'jurusan'])]);
+        return view('soal.show', ['item' => $soal->load(['topik', 'mataPelajaran', 'tingkatKelas', 'jurusan', 'guru'])]);
     }
 
     public function edit(Soal $soal)
     {
+        $this->pastikanMilikSendiri($soal);
+
         return view('soal.form', [
             'item' => $soal,
             'daftarTopik' => Topik::aktif()->milikPengguna()->orderBy('nama_topik')->get(),
@@ -91,6 +102,8 @@ class SoalController extends Controller
 
     public function update(Request $r, Soal $soal)
     {
+        $this->pastikanMilikSendiri($soal);
+
         $soal->update($this->siapkanData($r));
 
         return redirect()->route('soal.index')->with('success', 'Soal berhasil diperbarui.');
@@ -98,6 +111,8 @@ class SoalController extends Controller
 
     public function destroy(Soal $soal)
     {
+        $this->pastikanMilikSendiri($soal);
+
         if ($soal->paketDetail()->exists()) {
             return back()->with('error', 'Soal ini sedang dipakai pada paket soal. Lepaskan dari paket terlebih dahulu.');
         }
@@ -109,9 +124,19 @@ class SoalController extends Controller
 
     public function hapusMassal(Request $r)
     {
-        return $this->hapusBanyak($r, $this->kueriDasar(), fn (Soal $s) => $s->paketDetail()->exists()
-            ? '"'.Str::limit(TeksSoal::polos($s->pertanyaan), 40).'" masih dipakai pada paket soal.'
-            : null, 'soal');
+        // Butir guru lain ikut tampil di daftar, jadi bisa saja ikut
+        // tercentang. Ia ditolak di sini dengan alasan yang terbaca, bukan
+        // disaring diam-diam dari kuerinya — kalau tidak, guru hanya melihat
+        // angka terhapus yang lebih kecil tanpa tahu apa sebabnya.
+        return $this->hapusBanyak($r, $this->kueriDasar(), function (Soal $s) {
+            $judul = '"'.Str::limit(TeksSoal::polos($s->pertanyaan), 40).'"';
+
+            return match (true) {
+                ! $s->milik_saya => $judul.' milik guru lain.',
+                $s->paketDetail()->exists() => $judul.' masih dipakai pada paket soal.',
+                default => null,
+            };
+        }, 'soal');
     }
 
     /**
@@ -159,6 +184,13 @@ class SoalController extends Controller
                 $salinan = $asal->replicate(['kode_soal']);
                 $salinan->topik_id = $topik->id;
 
+                // Menyalin butir guru lain yang se-mata pelajaran boleh, dan
+                // salinannya menjadi milik yang menyalin: dialah yang akan
+                // menyuntingnya, sedangkan butir asalnya tetap utuh di tangan
+                // pembuatnya. Admin tidak punya guru_id, jadi di tangannya
+                // kepemilikan butir aslinya yang diteruskan.
+                $salinan->guru_id = Pengguna::guruId() ?? $asal->guru_id;
+
                 // Penempatan salinan boleh ikut topik tujuannya — persis yang
                 // dikerjakan formulir input soal ketika topiknya dipilih.
                 // Kolom yang di topiknya sendiri belum terisi dibiarkan
@@ -185,6 +217,8 @@ class SoalController extends Controller
     /** Nonaktifkan / aktifkan cepat dari daftar. */
     public function toggle(Soal $soal)
     {
+        $this->pastikanMilikSendiri($soal);
+
         $soal->update(['is_aktif' => ! $soal->is_aktif]);
 
         return back()->with('success', 'Status soal diperbarui.');
@@ -273,13 +307,24 @@ class SoalController extends Controller
     }
 
     /**
-     * Guru hanya melihat soal buatannya sendiri; admin melihat semua. Ini
-     * juga berlaku untuk export dan statistik di halaman daftar.
+     * Butir yang boleh dilihat: milik sendiri ditambah butir guru lain pada
+     * mata pelajaran yang diampu, walau tingkat kelasnya berbeda (lihat
+     * Soal::scopeBisaDilihat). Admin melihat semua. Dipakai daftar, export,
+     * statistik, dan pemilihan butir yang disalin.
      */
     protected function kueriDasar()
     {
-        return Soal::query()
-            ->when(Pengguna::guruId(), fn ($q, $guruId) => $q->where('guru_id', $guruId));
+        return Soal::query()->bisaDilihat();
+    }
+
+    /**
+     * Butir guru lain boleh dilihat dan disalin, tetapi tidak diubah. Dijawab
+     * 404 seperti data milik orang lain yang lain pula — dari sisi guru ini
+     * halaman ubahnya memang tidak pernah ada.
+     */
+    protected function pastikanMilikSendiri(Soal $soal): void
+    {
+        abort_unless($soal->milik_saya, 404);
     }
 
     /**

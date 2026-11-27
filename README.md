@@ -19,7 +19,7 @@ ini tidak pernah menulis ke sana dan satu sumber kebenaran tetap terjaga.
 | Menu | Isi |
 | --- | --- |
 | **Topik** | CRUD topik + **Sinkron CP-TP-ATP** dari database kurikulum, export Excel |
-| **Bank Soal** | Input 5 jenis soal (teks Arab, simbol matematika, gambar), import **Word (.docx)** & **Excel (.xlsx/.csv)** berikut gambarnya, **salin butir ke topik lain** (satuan atau sekaligus banyak), export Excel |
+| **Bank Soal** | Input 5 jenis soal (teks Arab, simbol matematika, gambar), import **Word (.docx)** & **Excel (.xlsx/.csv)** berikut gambarnya, **bank bersama se-mata pelajaran** antar guru lintas tingkat, **salin butir ke topik lain** (satuan atau sekaligus banyak), export Excel |
 | **Pemilihan Soal Diujikan** | Paket soal: pilih butir manual atau ambil acak per tingkat kesukaran, atur urutan & bobot |
 | **Registrasi Ujian** | Jadwal, durasi, token, KKM, pengacakan, proteksi kecurangan, kelas peserta, sinkron peserta, daftar hadir |
 | **Cadangan & Pemulihan** | Khusus admin. Backup seluruh data aplikasi (beserta gambar & audio/video soal) ke berkas ZIP, unduh, unggah, dan restore dengan cadangan pengaman otomatis. Cadangan data otomatis tiap malam bila cron menjalankan `schedule:run` |
@@ -728,7 +728,8 @@ Halaman login punya tiga pilihan peran dengan pengenal yang berbeda:
 Guru dan siswa memakai kata sandi yang sudah tersimpan di Data Center — aplikasi
 ini tidak pernah mengubahnya.
 
-**Hak akses:** guru hanya melihat bank soal, paket, dan ujian miliknya sendiri.
+**Hak akses:** paket soal dan ujian hanya terlihat oleh pembuatnya. Bank soal
+dibagi se-mata pelajaran — lihat [Bank Soal Bersama Se-Mata Pelajaran](#bank-soal-bersama-se-mata-pelajaran).
 Menu Log Login dan Pengguna khusus admin.
 
 ---
@@ -985,6 +986,47 @@ disunting lalu diimpor kembali.
 
 Import berjalan dua langkah: berkas diurai menjadi pratinjau (lengkap dengan
 daftar baris yang gagal dibaca), baru butir yang dicentang disimpan.
+
+---
+
+## Bank Soal Bersama Se-Mata Pelajaran
+
+Satu mata pelajaran kerap diampu beberapa guru pada tingkat yang berbeda —
+Matematika kelas 7 oleh seorang guru, kelas 8 oleh yang lain. Bank soalnya
+tetap bank soal mata pelajaran yang sama, jadi mereka saling melihat butir dan
+boleh memilihnya untuk diujikan, walau tingkat kelasnya tidak sama.
+
+| Kemampuan | Butir sendiri | Butir guru lain, mapel sama | Butir mapel lain |
+| --- | --- | --- | --- |
+| Tampil di **Bank Soal** & bisa dibuka | ✔ | ✔ | ✘ |
+| Dipilih di **Pemilihan Soal Diujikan** (manual & ambil acak) | ✔ | ✔ | ✘ |
+| **Salin ke topik** (salinannya jadi milik yang menyalin) | ✔ | ✔ | ✘ |
+| Export Excel | ✔ | ✔ | ✘ |
+| **Ubah, aktif/nonaktif, hapus** | ✔ | ✘ | ✘ |
+
+Yang menentukan keterbukaan adalah **mata pelajaran butirnya**, bukan tingkat
+kelasnya. Dua hal yang tetap tertutup:
+
+- **Butir yang mata pelajarannya belum diisi** hanya terlihat oleh pembuatnya —
+  tidak ada dasar untuk menentukan siapa lagi yang berhak melihatnya.
+- Pada jenjang **SMA/SMK**, butir guru lain ikut dibatasi jurusan yang diajar.
+
+Di halaman daftar, butir buatan guru lain menyebutkan nama pembuatnya dan
+tombol ubah/hapusnya tidak ditampilkan; bila alamatnya diketik langsung,
+jawabannya tetap 404. Penyaring **Pembuat → Buatan saya** mengembalikan daftar
+ke butir buatan sendiri saja. Kotak centang **Hapus terpilih** boleh saja ikut
+mencentang butir guru lain — yang ditolak disebutkan alasannya, bukan
+dihilangkan diam-diam dari hitungan.
+
+Daftar topik mengikuti pembagian yang sama, tetapi hanya di tempat yang
+*membaca*: penyaring topik di Bank Soal dan Pemilihan Soal ikut memuat topik
+tingkat lain pada mapel yang sama. Tempat yang *menulis* — menu Topik, Input
+Soal, Import, dan tujuan Salin ke Topik — tetap sebatas mapel **dan** tingkat
+yang diajar, sehingga guru tidak ikut menyunting topik tingkat yang bukan
+diajarnya.
+
+Paket soal dan jadwal ujian tidak ikut dibagi: keduanya tetap hanya terlihat
+oleh pembuatnya.
 
 ---
 

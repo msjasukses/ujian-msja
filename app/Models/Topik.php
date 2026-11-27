@@ -75,6 +75,35 @@ class Topik extends Model
                 ->orWhereNull('jurusan_id')));
     }
 
+    /**
+     * Topik yang boleh dilihat pengguna ini — sama seperti milikPengguna(),
+     * hanya tanpa batas tingkat kelas.
+     *
+     * Dipakai penyaring daftar di Bank Soal dan Pemilihan Soal. Sejak bank
+     * soal satu mata pelajaran dibagi antar guru yang mengajar tingkat
+     * berbeda (lihat Soal::scopeBisaDilihat), daftar topik penyaringnya harus
+     * ikut memuat topik tingkat lain; kalau tidak, butir yang kelihatan di
+     * daftar justru tidak bisa disaring per topiknya.
+     *
+     * milikPengguna() yang tetap dibatasi tingkat dipakai di tempat yang
+     * mengubah data — menu Topik dan penempatan butir — sehingga guru tidak
+     * ikut menyunting topik tingkat yang bukan diajarnya.
+     */
+    public function scopeBisaDilihat(Builder $q): Builder
+    {
+        if (! Pengguna::guruId()) {
+            return $q;
+        }
+
+        return $q
+            ->where(fn ($w) => $w
+                ->whereIn('mata_pelajaran_id', Referensi::mapel()->pluck('id'))
+                ->orWhereNull('mata_pelajaran_id'))
+            ->when(Referensi::pakaiJurusan(), fn ($q) => $q->where(fn ($w) => $w
+                ->whereIn('jurusan_id', Referensi::jurusan()->pluck('id'))
+                ->orWhereNull('jurusan_id')));
+    }
+
     public function mataPelajaran()
     {
         return $this->belongsTo(MataPelajaran::class);

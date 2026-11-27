@@ -119,9 +119,18 @@
         </div>
 
         <div class="d-flex gap-2">
-            <a href="{{ route('soal.edit', $item) }}" class="btn btn-primary flex-grow-1">
-                <i class="bi bi-pencil me-1"></i>Ubah
-            </a>
+            {{-- Butir se-mata pelajaran buatan guru lain boleh dibaca dan
+                 disalin, tetapi yang menyuntingnya tetap pembuatnya. --}}
+            @if ($item->milik_saya)
+                <a href="{{ route('soal.edit', $item) }}" class="btn btn-primary flex-grow-1">
+                    <i class="bi bi-pencil me-1"></i>Ubah
+                </a>
+            @else
+                <span class="small text-muted flex-grow-1 align-self-center">
+                    <i class="bi bi-person me-1"></i>Dibuat {{ $item->guru?->nama_ptk ?? 'guru lain' }} —
+                    hanya pembuatnya yang bisa mengubah butir ini.
+                </span>
+            @endif
             <a href="{{ route('soal.index') }}" class="btn btn-outline-secondary">Kembali</a>
         </div>
     </div>
