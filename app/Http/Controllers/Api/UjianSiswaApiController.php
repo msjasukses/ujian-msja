@@ -157,7 +157,10 @@ class UjianSiswaApiController extends Controller
             ], 409);
         }
 
-        $terisi = $peserta->jawaban()->with('soal')->get()->filter(fn ($j) => $j->terisi);
+        // Cukup kolom isinya: "terisi" hanya membaca isi jawabannya. Memuat soal
+        // beserta seluruh teks dan opsinya di sini membuat setiap satu klik
+        // jawaban membaca ulang seluruh paket soal peserta dari database.
+        $terisi = $peserta->jawaban()->get(['id', 'soal_id', 'jawaban'])->filter(fn ($j) => $j->terisi);
 
         return response()->json([
             'ok' => true,

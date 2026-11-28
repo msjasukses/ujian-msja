@@ -145,7 +145,16 @@
                            class="small ms-1">tampilkan semua</a>
                     @endif
                 </span>
-                <form class="d-flex gap-2 saring-peserta">
+                <form class="d-flex gap-2 saring-peserta" onsubmit="return !this.querySelector('#cariPeserta').matches(':focus')">
+                    {{-- Pencarian disaring langsung di layar (tanpa memuat ulang),
+                         dan ikut terkirim bersama penyaring lain supaya isinya
+                         tidak hilang saat status/kelas diganti. --}}
+                    <div class="input-group input-group-sm cari-peserta">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search" name="q" id="cariPeserta" class="form-control"
+                               value="{{ request('q') }}" placeholder="Cari nama / NIS…"
+                               aria-label="Cari nama atau NIS siswa" autocomplete="off">
+                    </div>
                     <select name="status" class="form-select form-select-sm" data-kirim-otomatis aria-label="Saring status">
                         <option value="">Semua status</option>
                         @foreach (\App\Http\Controllers\MonitoringController::SARING_STATUS as $nilai => $label)
@@ -186,7 +195,8 @@
                     </thead>
                     <tbody id="tabelPeserta">
                         @forelse ($peserta as $i => $p)
-                            <tr class="{{ $p->login_ganda ? 'table-warning' : '' }}">
+                            <tr class="{{ $p->login_ganda ? 'table-warning' : '' }}"
+                                data-cari="{{ mb_strtolower(($p->siswa->nama_siswa ?? '').' '.($p->siswa->nisn ?? '')) }}">
                                 <td class="text-muted small">{{ $i + 1 }}</td>
                                 <td>
                                     {{ $p->siswa->nama_siswa ?? '—' }}
@@ -272,6 +282,11 @@
                             <x-kosong kolom="10" icon="bi-people" :pesan="$statusTerpilih ? 'Tidak ada peserta dengan status ini.' : 'Belum ada peserta pada ujian ini.'" />
                         @endforelse
                     </tbody>
+                    <tbody id="cariKosong" class="d-none">
+                        <tr><td colspan="10" class="text-center text-muted py-4">
+                            <i class="bi bi-search me-1"></i>Tidak ada siswa yang cocok dengan pencarian.
+                        </td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -302,8 +317,10 @@
         .saring-peserta { width:100%; flex-wrap:wrap; }
         .saring-peserta > select,
         .saring-peserta > .select2-container { flex:1 1 9rem; min-width:0; }
-        .saring-peserta > a { flex:1 1 100%; }
+        .saring-peserta > a,
+        .saring-peserta > .cari-peserta { flex:1 1 100%; }
     }
+    .cari-peserta { width:15rem; min-width:11rem; flex-wrap:nowrap; }
 </style>
 @endpush
 
@@ -390,7 +407,8 @@
                 const rincian = p.melanggar
                     ? `<div class="rincian-langgar">${p.rincian.map(x => `<span>${aman(x.label)} ${x.jumlah}×</span>`).join('')}</div>`
                     : '';
-                return `<tr class="${p.login_ganda ? 'table-warning' : ''}">
+                const kunciCari = aman(`${p.nama || ''} ${p.nisn || ''}`.toLowerCase());
+                return `<tr class="${p.login_ganda ? 'table-warning' : ''}" data-cari="${kunciCari}">
                     <td class="text-muted small">${i + 1}</td>
                     <td>${aman(p.nama)}<div class="small text-muted">${aman(p.nisn)}</div></td>
                     <td class="small">${aman(p.kelas)}</td>
@@ -403,6 +421,7 @@
                     <td class="text-end text-nowrap">${selAksi(p)}</td>
                 </tr>`;
             }).join('');
+            terapkanCari();
         } catch (e) {
             // Gagal menyegarkan (mis. jaringan putus) dibiarkan diam —
             // tabel tetap menampilkan data terakhir yang berhasil diambil.
@@ -452,6 +471,26 @@
 
         return tombol.length ? tombol.join(' ') : '<span class="small text-muted">—</span>';
     }
+
+    /**
+     * Menyaring baris tabel menurut nama/NIS di sisi peramban. Dipanggil saat
+     * mengetik dan setelah tiap penyegaran, karena penyegaran membangun ulang
+     * seluruh baris.
+     */
+    const inputCari = document.getElementById('cariPeserta');
+    function terapkanCari() {
+        const kata = inputCari.value.trim().toLowerCase();
+        const baris = document.querySelectorAll('#tabelPeserta tr[data-cari]');
+        let tampil = 0;
+        baris.forEach(function (tr) {
+            const cocok = !kata || tr.dataset.cari.includes(kata);
+            tr.classList.toggle('d-none', !cocok);
+            if (cocok) tampil++;
+        });
+        document.getElementById('cariKosong').classList.toggle('d-none', !(kata && baris.length && tampil === 0));
+    }
+    inputCari.addEventListener('input', terapkanCari);
+    terapkanCari();
 
     setInterval(segarkan, 15000);
 </script>
