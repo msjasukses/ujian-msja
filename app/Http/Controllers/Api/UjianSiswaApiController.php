@@ -186,7 +186,9 @@ class UjianSiswaApiController extends Controller
             // ambangnya sendiri: tombol "Selesai" cukup mengikuti kabar ini.
             'boleh_kumpul' => $peserta->bolehKumpulkan(),
             'detik_tunggu_kumpul' => $peserta->detikMenungguKumpul(),
-            'pengawasan' => $this->pengawasan->keadaan($peserta),
+            // Tanpa pencarian log: aplikasi ponsel tidak memakai "terakhir",
+            // dan denyut inilah permintaan terbanyak selama ujian.
+            'pengawasan' => $this->pengawasan->keadaan($peserta, rinci: false),
         ]);
     }
 

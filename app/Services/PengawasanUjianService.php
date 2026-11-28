@@ -189,9 +189,14 @@ class PengawasanUjianService
      * Keadaan pengawasan seorang peserta, dipakai lembar ujian maupun respons
      * pelaporan pelanggaran.
      *
+     * $rinci = false melewatkan pencarian pelanggaran terakhir di tabel log.
+     * Denyut aplikasi ponsel memakainya: ia datang dari setiap peserta tiap
+     * setengah menit, sedangkan "terakhir" hanya dibutuhkan lembar peramban
+     * yang baru dibuka lagi dan lembar yang sudah terkunci.
+     *
      * @return array{pelanggaran:int, maks:int, terkunci:bool, sisa:int}
      */
-    public function keadaan(UjianPeserta $peserta): array
+    public function keadaan(UjianPeserta $peserta, bool $rinci = true): array
     {
         $maks = (int) $peserta->ujian->maks_pelanggaran;
         $jumlah = (int) $peserta->pelanggaran;
@@ -200,10 +205,12 @@ class PengawasanUjianService
         // menampilkan layar blokirnya setelah peramban ujian ditutup dan
         // dibuka lagi: kepergiannya tercatat, tetapi halamannya sudah mati
         // sebelum sempat menampilkan apa pun.
-        $terakhir = UjianLog::where('ujian_peserta_id', $peserta->id)
-            ->whereIn('event', array_diff(UjianLog::PELANGGARAN, ['dikunci']))
-            ->latest('id')
-            ->first();
+        $terakhir = ($rinci || $peserta->dikunci_at)
+            ? UjianLog::where('ujian_peserta_id', $peserta->id)
+                ->whereIn('event', array_diff(UjianLog::PELANGGARAN, ['dikunci']))
+                ->latest('id')
+                ->first()
+            : null;
 
         return [
             'pelanggaran' => $jumlah,
