@@ -90,6 +90,7 @@ Route::middleware('pengelola')->group(function () {
     Route::delete('paket-soal/{paket_soal}/soal/{detail}', [PaketSoalController::class, 'hapusSoal'])->name('paket-soal.hapus-soal');
     Route::put('paket-soal/{paket_soal}/urutan', [PaketSoalController::class, 'simpanUrutan'])->name('paket-soal.urutan');
     Route::post('paket-soal/{paket_soal}/acak', [PaketSoalController::class, 'ambilAcak'])->name('paket-soal.acak');
+    Route::get('paket-soal/{paket_soal}/preview', [PaketSoalController::class, 'preview'])->name('paket-soal.preview');
     Route::get('paket-soal/{paket_soal}/export', [PaketSoalController::class, 'export'])->name('paket-soal.export');
     Route::delete('paket-soal/hapus-massal', [PaketSoalController::class, 'hapusMassal'])->name('paket-soal.hapus-massal');
     Route::resource('paket-soal', PaketSoalController::class)->except('show');
@@ -103,6 +104,7 @@ Route::middleware('pengelola')->group(function () {
     Route::delete('ujian/{ujian}/peserta/{peserta}', [UjianController::class, 'hapusPeserta'])->name('ujian.peserta.hapus');
     Route::patch('ujian/{ujian}/peserta/{peserta}/toggle', [UjianController::class, 'togglePeserta'])->name('ujian.peserta.toggle');
     Route::get('ujian/{ujian}/peserta/export', [UjianController::class, 'exportPeserta'])->name('ujian.peserta.export');
+    Route::get('ujian/{ujian}/preview-soal', [UjianController::class, 'previewSoal'])->name('ujian.preview-soal');
     Route::patch('ujian/{ujian}/status', [UjianController::class, 'ubahStatus'])->name('ujian.status');
     Route::patch('ujian/{ujian}/token', [UjianController::class, 'tokenBaru'])->name('ujian.token');
     Route::delete('ujian/hapus-massal', [UjianController::class, 'hapusMassal'])->name('ujian.hapus-massal');

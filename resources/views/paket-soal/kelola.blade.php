@@ -24,6 +24,9 @@
                     <span><i class="bi bi-check2-square me-1"></i>Soal dalam Paket</span>
                     <div class="d-flex flex-wrap gap-2">
                         <x-hapus-massal bagian="tombol" aksi="Lepas" />
+                        <a href="{{ route('paket-soal.preview', $paket) }}" class="btn btn-sm btn-outline-info" target="_blank">
+                            <i class="bi bi-eye me-1"></i>Preview
+                        </a>
                         <a href="{{ route('paket-soal.export', $paket) }}" class="btn btn-sm btn-outline-success">
                             <i class="bi bi-file-earmark-excel me-1"></i>Export
                         </a>
@@ -58,6 +61,9 @@
                                             <x-jenis-soal :jenis="$d->soal?->jenis ?? 'pg'" />
                                             @if ($d->soal?->tingkat_kesukaran)
                                                 <span class="badge badge-soft">{{ ucfirst($d->soal->tingkat_kesukaran) }}</span>
+                                            @endif
+                                            @if ($d->soal)
+                                                @include('paket-soal.partials.pratinjau-butir', ['soal' => $d->soal, 'nomor' => $d->nomor_urut, 'bobot' => $d->bobot])
                                             @endif
                                         </div>
                                     </td>
@@ -209,6 +215,7 @@
                                                     {{ Str::limit($s->guru?->nama_ptk ?? 'guru lain', 24) }}
                                                 </span>
                                             @endunless
+                                            @include('paket-soal.partials.pratinjau-butir', ['soal' => $s])
                                         </div>
                                     </td>
                                     <td class="text-center small">{{ (float) $s->bobot }}</td>
@@ -241,8 +248,58 @@
     </a>
 </div>
 
+{{-- Pratinjau satu butir: isi diambil dari <template> milik baris yang diklik. --}}
+<div class="modal fade" id="modalPratinjauSoal" tabindex="-1" aria-labelledby="judulPratinjauSoal" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fs-6" id="judulPratinjauSoal">Pratinjau soal</h5>
+                <div class="form-check form-switch mb-0 ms-auto me-3">
+                    <input class="form-check-input" type="checkbox" id="pratinjauTampilKunci" checked>
+                    <label class="form-check-label small" for="pratinjauTampilKunci">Kunci</label>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body" id="isiPratinjauSoal"></div>
+        </div>
+    </div>
+</div>
+
+@push('head')
+<style>
+    #isiPratinjauSoal.sembunyi-kunci .penanda-kunci { display: none !important; }
+    #isiPratinjauSoal.sembunyi-kunci .opsi-kunci {
+        border-color: var(--bs-border-color) !important;
+        background-color: transparent !important;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
+    (function () {
+        const elModal = document.getElementById('modalPratinjauSoal');
+        const isi = document.getElementById('isiPratinjauSoal');
+        const judul = document.getElementById('judulPratinjauSoal');
+        const sakelar = document.getElementById('pratinjauTampilKunci');
+        const terapkanKunci = () => isi.classList.toggle('sembunyi-kunci', !sakelar.checked);
+        sakelar.addEventListener('change', terapkanKunci);
+
+        document.addEventListener('click', function (e) {
+            const tombol = e.target.closest('.tombol-pratinjau');
+            if (!tombol) return;
+            const tpl = document.getElementById(tombol.dataset.pratinjau);
+            if (!tpl) return;
+            isi.replaceChildren(tpl.content.cloneNode(true));
+            judul.textContent = 'Pratinjau — ' + tombol.dataset.judul;
+            terapkanKunci();
+            bootstrap.Modal.getOrCreateInstance(elModal).show();
+        });
+
+        // Hentikan audio/video yang masih berputar saat modal ditutup.
+        elModal.addEventListener('hidden.bs.modal', () => isi.replaceChildren());
+    })();
+
     document.getElementById('pilihSemua')?.addEventListener('change', function () {
         document.querySelectorAll('.pilih-soal').forEach(cb => cb.checked = this.checked);
     });

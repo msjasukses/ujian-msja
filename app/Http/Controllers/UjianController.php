@@ -342,6 +342,14 @@ class UjianController extends Controller
         return back()->with('success', 'Token ujian diperbarui menjadi '.$ujian->token.'.');
     }
 
+    /** Preview butir soal yang akan dikerjakan peserta ujian ini. */
+    public function previewSoal(Ujian $ujian)
+    {
+        abort_unless($ujian->paketSoal, 404, 'Ujian ini belum memakai paket soal.');
+
+        return PaketSoalController::tampilPreview($ujian->paketSoal, $ujian);
+    }
+
     /** Kartu peserta / daftar hadir ke Excel. */
     public function exportPeserta(Ujian $ujian)
     {

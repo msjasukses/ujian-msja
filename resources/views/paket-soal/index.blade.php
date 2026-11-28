@@ -73,7 +73,7 @@
                     <th>{{ $pakaiJurusan ? 'Tingkat / Jurusan' : 'Tingkat' }}</th>
                     <th class="text-center">Butir</th>
                     <th class="text-center">Dipakai Ujian</th>
-                    <th style="width:11rem"></th>
+                    <th style="width:13.5rem"></th>
                 </tr>
             </thead>
             <tbody>
@@ -100,6 +100,9 @@
                         <td class="text-end">
                             <a href="{{ route('paket-soal.kelola', $p) }}" class="btn btn-sm btn-outline-primary" title="Pilih soal">
                                 <i class="bi bi-list-check"></i>
+                            </a>
+                            <a href="{{ route('paket-soal.preview', $p) }}" class="btn btn-sm btn-outline-info" title="Preview soal">
+                                <i class="bi bi-eye"></i>
                             </a>
                             <a href="{{ route('paket-soal.export', $p) }}" class="btn btn-sm btn-outline-success" title="Export naskah">
                                 <i class="bi bi-file-earmark-excel"></i>

@@ -66,15 +66,23 @@
 
                         <div class="col-12">
                             <label class="form-label">Paket soal <span class="text-danger">*</span></label>
-                            <select name="paket_soal_id" class="form-select @error('paket_soal_id') is-invalid @enderror" required>
-                                <option value="">— pilih paket soal —</option>
-                                @foreach ($daftarPaket as $p)
-                                    <option value="{{ $p->id }}" @selected(old('paket_soal_id', $item->paket_soal_id) == $p->id)>
-                                        {{ $p->nama_paket }} ({{ $p->kode_paket }}) — {{ $p->detail_count }} butir
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('paket_soal_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="input-group has-validation">
+                                <select name="paket_soal_id" class="form-select @error('paket_soal_id') is-invalid @enderror" required>
+                                    <option value="">— pilih paket soal —</option>
+                                    @foreach ($daftarPaket as $p)
+                                        <option value="{{ $p->id }}" data-preview="{{ route('paket-soal.preview', $p) }}"
+                                                @selected(old('paket_soal_id', $item->paket_soal_id) == $p->id)>
+                                            {{ $p->nama_paket }} ({{ $p->kode_paket }}) — {{ $p->detail_count }} butir
+                                        </option>
+                                    @endforeach
+                                </select>
+                                {{-- Buka di tab baru supaya isian formulir tidak hilang. --}}
+                                <a href="#" id="tombol-preview-paket" target="_blank" class="btn btn-outline-info disabled"
+                                   title="Preview soal dalam paket terpilih">
+                                    <i class="bi bi-eye me-1"></i>Preview soal
+                                </a>
+                                @error('paket_soal_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
                             @if ($daftarPaket->isEmpty())
                                 <div class="form-text text-danger">
                                     Belum ada paket soal aktif.
@@ -380,6 +388,20 @@
             if (!cb.closest('.kolom-kelas')?.classList.contains('d-none')) cb.checked = nilai;
         });
     }
+
+    // Tombol "Preview soal" mengikuti paket yang sedang dipilih.
+    (function () {
+        const paket = document.querySelector('select[name="paket_soal_id"]');
+        const tombol = document.getElementById('tombol-preview-paket');
+        if (!paket || !tombol) return;
+        const segarkan = () => {
+            const url = paket.selectedOptions[0]?.dataset.preview;
+            tombol.href = url || '#';
+            tombol.classList.toggle('disabled', !url);
+        };
+        paket.addEventListener('change', segarkan);
+        segarkan();
+    })();
 
     // Centang kelas mengerucut mengikuti mata pelajaran paket soal: kelas yang
     // tidak mengambil mapel itu disembunyikan dan centangnya dilepas.

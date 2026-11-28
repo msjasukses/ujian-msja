@@ -66,7 +66,7 @@
                     <th class="text-center">Token</th>
                     <th class="text-center">Peserta</th>
                     <th class="text-center">Status</th>
-                    <th style="width:12rem"></th>
+                    <th style="width:14.5rem"></th>
                 </tr>
             </thead>
             <tbody>
@@ -115,6 +115,11 @@
                             </span>
                         </td>
                         <td class="text-end">
+                            @if ($u->paket_soal_id)
+                                <a href="{{ route('ujian.preview-soal', $u) }}" class="btn btn-sm btn-outline-info" title="Preview soal">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            @endif
                             <a href="{{ route('ujian.peserta', $u) }}" class="btn btn-sm btn-outline-primary" title="Peserta">
                                 <i class="bi bi-people"></i>
                             </a>

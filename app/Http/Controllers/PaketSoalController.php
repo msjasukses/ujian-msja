@@ -6,6 +6,7 @@ use App\Models\PaketSoal;
 use App\Models\PaketSoalDetail;
 use App\Models\Soal;
 use App\Models\Topik;
+use App\Models\Ujian;
 use App\Models\UjianPeserta;
 use App\Support\ExcelExport;
 use App\Support\Pengguna;
@@ -281,6 +282,25 @@ class PaketSoalController extends Controller
                 ? "{$jumlah} butir soal diambil acak dari bank soal."
                 : 'Tidak ada butir yang cocok dengan komposisi yang diminta. Periksa isi bank soal untuk mapel & tingkat paket ini.'
         );
+    }
+
+    /** Preview seluruh butir paket sesuai urutan, lengkap dengan kunci. */
+    public function preview(PaketSoal $paket_soal)
+    {
+        return static::tampilPreview($paket_soal);
+    }
+
+    /** Dipakai juga oleh preview soal di menu Registrasi Ujian. */
+    public static function tampilPreview(PaketSoal $paket, ?Ujian $ujian = null)
+    {
+        return view('paket-soal.preview', [
+            'paket' => $paket->load('mataPelajaran', 'tingkatKelas'),
+            'ujian' => $ujian,
+            'detail' => $paket->detail()
+                ->with(['soal' => fn ($q) => $q->with('topik')])
+                ->orderBy('nomor_urut')
+                ->get(),
+        ]);
     }
 
     /** Cetak kartu soal paket ke Excel (naskah + kunci). */
