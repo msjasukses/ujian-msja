@@ -92,7 +92,7 @@ class SoalController extends Controller
 
     public function edit(Soal $soal)
     {
-        $this->pastikanMilikSendiri($soal);
+        $this->pastikanBisaDiubah($soal);
 
         return view('soal.form', [
             'item' => $soal,
@@ -102,8 +102,10 @@ class SoalController extends Controller
 
     public function update(Request $r, Soal $soal)
     {
-        $this->pastikanMilikSendiri($soal);
+        $this->pastikanBisaDiubah($soal);
 
+        // guru_id tidak ikut siapkanData(), jadi butir guru lain yang
+        // disunting rekan se-mapel tetap tercatat milik pembuatnya.
         $soal->update($this->siapkanData($r));
 
         return redirect()->route('soal.index')->with('success', 'Soal berhasil diperbarui.');
@@ -318,13 +320,18 @@ class SoalController extends Controller
     }
 
     /**
-     * Butir guru lain boleh dilihat dan disalin, tetapi tidak diubah. Dijawab
-     * 404 seperti data milik orang lain yang lain pula — dari sisi guru ini
-     * halaman ubahnya memang tidak pernah ada.
+     * Butir guru lain hanya boleh dihapus/dinonaktifkan pembuatnya. Dijawab
+     * 404 seperti data milik orang lain yang lain pula.
      */
     protected function pastikanMilikSendiri(Soal $soal): void
     {
         abort_unless($soal->milik_saya, 404);
+    }
+
+    /** Menyunting boleh oleh pembuatnya atau guru se-mata pelajaran. */
+    protected function pastikanBisaDiubah(Soal $soal): void
+    {
+        abort_unless($soal->bisa_diubah, 404);
     }
 
     /**

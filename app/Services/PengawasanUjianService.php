@@ -69,6 +69,25 @@ class PengawasanUjianService
     public const JEDA_ULANG_DETIK = 5;
 
     /**
+     * Jendela penyaring untuk laporan yang ditandai **kiriman ulang**.
+     *
+     * Aplikasi mengantrekan laporan yang gagal terkirim — kepergian dari
+     * aplikasi dilaporkan tepat ketika Android menjeda aplikasinya dan
+     * memotong jaringan, jadi kegagalan itu justru lazim. Sebagian di
+     * antaranya sebenarnya **sempat sampai**: hanya balasannya yang tidak
+     * pernah kembali ke perangkat. Kiriman ulangnya karena itu tidak boleh
+     * dihitung lagi.
+     *
+     * Dibuat selebar denyut aplikasi (15 detik) dikalikan beberapa kali,
+     * supaya antrean yang baru terkirim setelah jaringan pulih tetap
+     * tersaring. Hanya berlaku bagi laporan bertanda ulang — kejadian baru
+     * yang dilaporkan langsung tetap memakai jendela lima detik, dan siswa
+     * yang benar-benar keluar dua kali dalam satu menit tetap terhitung dua
+     * kali.
+     */
+    public const JEDA_ULANG_KIRIMAN_DETIK = 90;
+
+    /**
      * Jenis kejadian yang membuat seorang siswa terhitung "melanggar" di menu
      * Monitoring: pelanggaran yang memang dihitung sistem. Percobaan menyalin
      * tidak, dan kejadian "dikunci" bukan perbuatan siswa.
@@ -88,14 +107,20 @@ class PengawasanUjianService
      *
      * @return array{pelanggaran:int, maks:int, terkunci:bool, sisa:int}
      */
-    public function catat(UjianPeserta $peserta, string $jenis, ?string $keterangan = null): array
-    {
+    public function catat(
+        UjianPeserta $peserta,
+        string $jenis,
+        ?string $keterangan = null,
+        bool $ulang = false,
+    ): array {
         $ujian = $peserta->ujian;
 
         abort_unless(array_key_exists($jenis, UjianLog::EVENT)
             && in_array($jenis, UjianLog::PELANGGARAN, true), 422, 'Jenis pelanggaran tidak dikenal.');
 
-        if ($this->kembar($peserta, $jenis)) {
+        if ($this->kembar($peserta, $jenis, $ulang
+            ? self::JEDA_ULANG_KIRIMAN_DETIK
+            : self::JEDA_ULANG_DETIK)) {
             return $this->keadaan($peserta);
         }
 
@@ -137,11 +162,14 @@ class PengawasanUjianService
      * layar lalu berpindah aplikasi pada detik yang sama memang melakukan dua
      * hal.
      */
-    protected function kembar(UjianPeserta $peserta, string $jenis): bool
-    {
+    protected function kembar(
+        UjianPeserta $peserta,
+        string $jenis,
+        ?int $detik = null,
+    ): bool {
         return UjianLog::where('ujian_peserta_id', $peserta->id)
             ->where('event', $jenis)
-            ->where('created_at', '>=', now()->subSeconds(self::JEDA_ULANG_DETIK))
+            ->where('created_at', '>=', now()->subSeconds($detik ?? self::JEDA_ULANG_DETIK))
             ->exists();
     }
 

@@ -157,7 +157,7 @@
                             <a href="{{ route('soal.show', $s) }}" class="btn btn-sm btn-outline-secondary" title="Lihat">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            @if ($s->milik_saya)
+                            @if ($s->bisa_diubah)
                                 <a href="{{ route('soal.edit', $s) }}" class="btn btn-sm btn-outline-secondary" title="Ubah">
                                     <i class="bi bi-pencil"></i>
                                 </a>

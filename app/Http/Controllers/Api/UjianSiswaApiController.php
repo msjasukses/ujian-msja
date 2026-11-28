@@ -214,14 +214,20 @@ class UjianSiswaApiController extends Controller
         $request->validate([
             'jenis' => 'required|string|in:'.implode(',', UjianLog::PELANGGARAN),
             'keterangan' => 'nullable|string|max:255',
+            // Kiriman ulang dari antrean aplikasi, bukan kejadian baru.
+            // Aplikasi lama tidak pernah mengirimnya, jadi nilainya opsional.
+            'ulang' => 'sometimes|boolean',
         ]);
 
         // 'dikunci' hanya boleh lahir dari service, bukan dari kiriman klien.
         abort_if($request->input('jenis') === 'dikunci', 422, 'Jenis pelanggaran tidak dikenal.');
 
-        return response()->json(
-            $this->pengawasan->catat($peserta, $request->input('jenis'), $request->input('keterangan'))
-        );
+        return response()->json($this->pengawasan->catat(
+            $peserta,
+            $request->input('jenis'),
+            $request->input('keterangan'),
+            $request->boolean('ulang'),
+        ));
     }
 
     public function pengawasan(UjianPeserta $peserta)

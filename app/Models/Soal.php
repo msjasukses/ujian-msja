@@ -183,8 +183,8 @@ class Soal extends Model
      * dasar untuk menentukan siapa yang berhak melihatnya, jadi ia tetap
      * milik pembuatnya saja sampai mapelnya dilengkapi.
      *
-     * Menyunting, menghapus, dan menonaktifkan tetap hak pemiliknya — itu
-     * dijaga milikPengguna() dari trait MilikGuru, bukan scope ini.
+     * Menyunting juga dibuka untuk guru se-mapel (lihat bisa_diubah), tetapi
+     * menghapus dan menonaktifkan tetap hak pemiliknya (lihat milik_saya).
      */
     public function scopeBisaDilihat(Builder $q): Builder
     {
@@ -204,17 +204,41 @@ class Soal extends Model
     }
 
     /**
-     * Apakah butir ini boleh diubah pengguna yang sedang masuk.
+     * Apakah butir ini buatan pengguna yang sedang masuk (admin: selalu ya).
      *
-     * Butir guru lain yang se-mata pelajaran boleh dilihat dan disalin, tetapi
-     * tombol ubah, aktif/nonaktif, dan hapusnya tidak ditampilkan — dan bila
-     * alamatnya diketik langsung, SoalController tetap menolaknya.
+     * Butir guru lain yang se-mata pelajaran boleh dilihat, disalin, dan
+     * disunting, tetapi tombol aktif/nonaktif dan hapusnya tidak ditampilkan —
+     * dan bila alamatnya diketik langsung, SoalController tetap menolaknya.
      */
     public function getMilikSayaAttribute(): bool
     {
         $guruId = Pengguna::guruId();
 
         return ! $guruId || (int) $this->guru_id === $guruId;
+    }
+
+    /**
+     * Apakah butir ini boleh disunting pengguna yang sedang masuk.
+     *
+     * Lebih longgar daripada milik_saya: guru se-mata pelajaran (dan, di
+     * jenjang berjurusan, se-jurusan) boleh ikut membetulkan butir guru lain —
+     * aturannya sama persis dengan scopeBisaDilihat(). Kepemilikan butirnya
+     * tidak berpindah; menghapus dan menonaktifkan tetap hak pembuatnya.
+     */
+    public function getBisaDiubahAttribute(): bool
+    {
+        if ($this->milik_saya) {
+            return true;
+        }
+
+        if (! $this->mata_pelajaran_id
+            || ! Referensi::mapel()->pluck('id')->contains($this->mata_pelajaran_id)) {
+            return false;
+        }
+
+        return ! Referensi::pakaiJurusan()
+            || ! $this->jurusan_id
+            || Referensi::jurusan()->pluck('id')->contains($this->jurusan_id);
     }
 
     /**

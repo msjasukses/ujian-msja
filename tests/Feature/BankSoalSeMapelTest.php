@@ -23,8 +23,8 @@ use Tests\TestCase;
  * paket yang diujikan, walau tingkat kelasnya tidak sama.
  *
  * Yang tidak ikut terbuka dan dijaga di sini: butir mata pelajaran lain,
- * butir yang mapelnya belum diisi, dan hak menyunting — mengubah, menghapus,
- * serta menonaktifkan tetap milik pembuatnya.
+ * butir yang mapelnya belum diisi, serta hak menghapus dan menonaktifkan yang
+ * tetap milik pembuatnya. Menyunting boleh oleh sesama guru se-mapel.
  */
 class BankSoalSeMapelTest extends TestCase
 {
@@ -103,16 +103,32 @@ class BankSoalSeMapelTest extends TestCase
         $this->assertModelExists($punyaSaya);
     }
 
-    public function test_butir_guru_lain_bisa_dibaca_tetapi_tidak_diubah(): void
+    public function test_butir_guru_lain_semapel_bisa_disunting_tetapi_tetap_milik_pembuatnya(): void
     {
         $seMapel = $this->soal($this->guruLain, $this->mapelSaya, $this->tingkatLain);
 
-        // Dibaca: boleh.
-        $this->get("/soal/{$seMapel->id}")->assertOk()->assertDontSee(route('soal.edit', $seMapel), false);
+        // Dibaca dan disunting: boleh.
+        $this->get("/soal/{$seMapel->id}")->assertOk()->assertSee(route('soal.edit', $seMapel), false);
+        $this->get("/soal/{$seMapel->id}/edit")->assertOk();
 
-        // Diubah, dinonaktifkan, dihapus: tidak — dan jawabannya 404, sama
-        // seperti data milik orang lain yang lain pula.
-        $this->get("/soal/{$seMapel->id}/edit")->assertNotFound();
+        $this->put(route('soal.update', $seMapel), [
+            'jenis' => Soal::PG, 'pertanyaan' => 'Sudah dibetulkan rekan?', 'bobot' => 2,
+            'mata_pelajaran_id' => $this->mapelSaya, 'tingkat_kelas_id' => $this->tingkatLain,
+            'opsi_text' => ['ya', 'tidak'], 'kunci_pg' => ['B'],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('soal.index'));
+
+        $segar = $seMapel->fresh();
+        $this->assertSame('Sudah dibetulkan rekan?', $segar->pertanyaan);
+        $this->assertSame(['B'], $segar->kunci);
+        $this->assertSame($this->guruLain, $segar->guru_id);
+    }
+
+    public function test_butir_guru_lain_tidak_bisa_dihapus_atau_dinonaktifkan(): void
+    {
+        $seMapel = $this->soal($this->guruLain, $this->mapelSaya, $this->tingkatLain);
+
+        // Dinonaktifkan, dihapus: tidak — dan jawabannya 404, sama seperti
+        // data milik orang lain yang lain pula.
         $this->patch(route('soal.toggle', $seMapel))->assertNotFound();
         $this->delete(route('soal.destroy', $seMapel))->assertNotFound();
 

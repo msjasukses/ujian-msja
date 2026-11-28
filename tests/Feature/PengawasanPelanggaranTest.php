@@ -97,6 +97,49 @@ class PengawasanPelanggaranTest extends TestCase
         $this->assertSame(2, $keadaan['pelanggaran']);
     }
 
+    /**
+     * Kiriman ulang dari antrean aplikasi tidak menghukum dua kali.
+     *
+     * Kepergian dari aplikasi dilaporkan tepat ketika Android menjeda
+     * aplikasinya, jadi sebagian laporan sampai ke sini tetapi balasannya
+     * tidak pernah kembali ke perangkat. Aplikasi menganggapnya gagal dan
+     * mengirimnya lagi pada denyut berikutnya — belasan detik kemudian,
+     * jauh di luar jendela lima detik yang menyaring laporan kembar biasa.
+     */
+    public function test_kiriman_ulang_dari_antrean_tidak_dihitung_dua_kali(): void
+    {
+        $peserta = $this->peserta();
+
+        $this->pengawasan->catat($peserta, 'keluar_aplikasi');
+
+        // Seolah laporan pertama masuk 30 detik lalu: di luar jendela biasa,
+        // tetapi masih di dalam jendela kiriman ulang.
+        UjianLog::where('ujian_peserta_id', $peserta->id)
+            ->update(['created_at' => now()->subSeconds(30)]);
+
+        $keadaan = $this->pengawasan->catat($peserta, 'keluar_aplikasi', ulang: true);
+
+        $this->assertSame(1, $keadaan['pelanggaran']);
+    }
+
+    /**
+     * Penyaring kiriman ulang tidak boleh menelan kepergian yang benar-benar
+     * baru. Yang memakai jendela lebar hanya laporan bertanda ulang.
+     */
+    public function test_kepergian_baru_tetap_dihitung_walau_berdekatan(): void
+    {
+        $peserta = $this->peserta();
+
+        $this->pengawasan->catat($peserta, 'keluar_aplikasi');
+
+        UjianLog::where('ujian_peserta_id', $peserta->id)
+            ->update(['created_at' => now()->subSeconds(30)]);
+
+        $keadaan = $this->pengawasan->catat($peserta, 'keluar_aplikasi');
+
+        $this->assertSame(2, $keadaan['pelanggaran']);
+    }
+
     /** Batasnya tetap berlaku: tiga kepergian terpisah mengunci lembar. */
     public function test_batas_tetap_mengunci_lembar(): void
     {
